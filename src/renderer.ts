@@ -1,5 +1,3 @@
-import { clipboard } from 'electron'
-
 import './index.css'
 import './index.tsx'
 

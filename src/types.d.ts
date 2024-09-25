@@ -10,15 +10,24 @@ interface ChunkDirection {
   z: 1 | -1
 }
 
+interface Corner {
+  chunk: Chunk
+  position: Vector3
+}
+
+interface Solution {
+  minX?: number
+  maxX?: number
+  minZ?: number
+  maxZ?: number
+  foundX?: number
+  foundZ?: number
+}
+
 interface Vector3 {
   x: number
   y: number
   z: number
-}
-
-interface Corner {
-  chunk: Chunk
-  position: Vector3
 }
 
 declare global {
