@@ -59,6 +59,18 @@ const config: ForgeConfig = {
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
     }),
   ],
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: 'GreenAppers',
+          name: 'PieRayHelper',
+        },
+        prerelease: true,
+      },
+    },
+  ],
 }
 
 export default config

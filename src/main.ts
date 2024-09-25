@@ -41,8 +41,8 @@ const createWindow = (): void => {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     icon: path.join(process.cwd(), 'images', 'icon.png'),
-    height: 600,
-    width: 800,
+    height: 720,
+    width: 960,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
     },
@@ -71,13 +71,9 @@ app.on('ready', () => {
   createWindow()
 })
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
+// Quit when all windows are closed
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  app.quit()
 })
 
 app.on('activate', () => {
