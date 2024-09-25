@@ -20,6 +20,8 @@ interface Solution {
   maxX?: number
   minZ?: number
   maxZ?: number
+  distX?: number
+  distZ?: number
   foundX?: number
   foundZ?: number
 }

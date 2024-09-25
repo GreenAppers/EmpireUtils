@@ -12,11 +12,14 @@ permissions:
 
 jobs:
   release:
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.config.os }}
 
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        config:
+          - {os: macos-latest, flags: '--arch universal'}
+          - {os: ubuntu-latest, flags: ''}
+          - {os: windows-latest, flags: '']
 
     steps:
       - name: Checkout
@@ -32,4 +35,4 @@ jobs:
       - name: Publish app
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: yarn && yarn publish-app
+        run: yarn && yarn publish-app ${{ matrix.config.flags }}

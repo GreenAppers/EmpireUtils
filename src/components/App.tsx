@@ -94,25 +94,27 @@ function App() {
     const xSort = [...corners].sort((a, b) => a.chunk.x - b.chunk.x)
     const zSort = [...corners].sort((a, b) => a.chunk.z - b.chunk.z)
 
-    let foundX, foundZ
+    let distX, distZ, foundX, foundZ
     for (let i = 0; i < xSort.length - 1; i++) {
       if (xSort[i].chunk.x === xSort[i + 1].chunk.x) {
         foundZ = lerp(xSort[i].chunk.z, xSort[i + 1].chunk.z, 0.5)
+        distZ = Math.abs(xSort[i].chunk.z - xSort[i + 1].chunk.z)
         break
       }
     }
     for (let i = 0; i < zSort.length - 1; i++) {
       if (zSort[i].chunk.z === zSort[i + 1].chunk.z) {
         foundX = lerp(zSort[i].chunk.x, zSort[i + 1].chunk.x, 0.5)
+        distX = Math.abs(zSort[i].chunk.x - zSort[i + 1].chunk.x)
         break
       }
     }
 
     if (foundX && foundZ) log.info(`Found solution: ${foundX}, ${foundZ}`)
-    setSolution({ minX, maxX, minZ, maxZ, foundX, foundZ })
+    setSolution({ minX, maxX, minZ, maxZ, distX, distZ, foundX, foundZ })
   }, [corners, setSolution])
 
-  const { minX, maxX, minZ, maxZ, foundX, foundZ } = solution
+  const { minX, maxX, minZ, maxZ, distX, distZ, foundX, foundZ } = solution
 
   return (
     <Container>
@@ -262,8 +264,8 @@ function App() {
                 <Td>
                   <Icon as={StarIcon} color="yellow.300" marginX="5px" />
                 </Td>
-                <Td>{foundX * 16 + 8 * (foundX >= 0 ? 1 : -1)}</Td>
-                <Td>{foundZ * 16 + 8 * (foundZ >= 0 ? 1 : -1)}</Td>
+                <Td>{foundX * 16 + 8 * (1 + (distX % 2))}</Td>
+                <Td>{foundZ * 16 + 8 * (1 + (distZ % 2))}</Td>
                 <Td>{foundX}</Td>
                 <Td>{foundZ}</Td>
                 <Td></Td>
