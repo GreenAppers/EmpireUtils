@@ -189,7 +189,7 @@ function App() {
             <ListIcon color="green.500">
               <CheckIcon />
             </ListIcon>
-            Copy the coordinates to the clipboard and the corner will be added
+            Copy the coordinates to the clipboard and the corner will be added.
           </ListItem>
           <ListItem>
             <ListIcon color="green.500">
