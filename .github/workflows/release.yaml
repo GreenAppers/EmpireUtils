@@ -18,7 +18,7 @@ jobs:
       matrix:
         config:
           - os: macos-latest
-            flags: '--arch universal'
+            flags: '--arch x64'
           - os: ubuntu-latest
             flags: ''
           - os: windows-latest
