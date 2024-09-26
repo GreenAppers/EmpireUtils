@@ -17,9 +17,12 @@ jobs:
     strategy:
       matrix:
         config:
-          - {os: macos-latest, flags: '--arch universal'}
-          - {os: ubuntu-latest, flags: ''}
-          - {os: windows-latest, flags: '']
+          - os: macos-latest
+            flags: '--arch universal'
+          - os: ubuntu-latest
+            flags: ''
+          - os: windows-latest
+            flags: ''
 
     steps:
       - name: Checkout
