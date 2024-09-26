@@ -5,3 +5,6 @@
 - Copy the coordinates to the clipboard and the corner will be added.
 - Find two more corners: one with the same X chunk coordinate, one with the same Z chunk coordinate.
 - The solution is added.
+
+![Test1](images/test1.png?raw=true "Test1")
+![Test2](images/test2.png?raw=true "Test2")
