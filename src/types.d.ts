@@ -6,12 +6,15 @@ interface Chunk {
 }
 
 interface ChunkDirection {
-  x: 1 | -1
-  z: 1 | -1
+  x: Direction
+  z: Direction
 }
 
-interface Corner {
+type Direction = 1 | -1 | 0
+
+interface Sample {
   chunk: Chunk
+  direction?: ChunkDirection
   position: Vector3
 }
 

@@ -40,13 +40,28 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import type { Corner, Solution } from '../types'
+import type { ChunkDirection, Direction, Sample, Solution } from '../types'
+
+const vanillaCoords = /tp @s (-?\d+\.\d+) (-?\d+\.\d+) (-?\d+\.\d+)/
+const lunarClientCoords = /X: (-?\d+) Y: (-?\d+) Z: (-?\d+)/
+
+function getDirectionArrow(direction?: ChunkDirection) {
+  if (!direction) return ''
+  switch (direction.z) {
+    case 1:
+      return direction.x === 1 ? '↗' : direction.x === -1 ? '↖' : '↑'
+    case -1:
+      return direction.x === 1 ? '↘' : direction.x === -1 ? '↙' : '↓'
+    case 0:
+      return direction.x === 1 ? '→' : direction.x === -1 ? '←' : ''
+  }
+}
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
 function App() {
   const [logfilePath, setLogfilePath] = useState('')
-  const [corners, setCorners] = useState([] as Corner[])
+  const [samples, setSamples] = useState([] as Sample[])
   const [solution, setSolution] = useState({} as Solution)
   const [showHelp, setShowHelp] = useState(false)
 
@@ -64,35 +79,58 @@ function App() {
 
   useEffect(() => {
     window.api.onClipboardTextUpdated((text: string) => {
-      const match = text.match(/X: (-?\d+) Y: (-?\d+) Z: (-?\d+)/)
+      let match = text.match(vanillaCoords)
+      if (!match) match = text.match(lunarClientCoords)
       if (!match) return
 
       const x = parseInt(match[1])
       const y = parseInt(match[2])
       const z = parseInt(match[3])
 
-      const corner: Corner = {
+      const sample: Sample = {
         chunk: { x: Math.floor(x / 16), z: Math.floor(z / 16) },
         position: { x, y, z },
       }
 
-      log.info(`Added corner: ${x}, ${y}, ${z}`)
-      setCorners((corners) => [...corners, corner])
+      setSamples((samples) => {
+        for (const currentSample of samples) {
+          const xDirection = currentSample.position.x - sample.position.x
+          const zDirection = currentSample.position.z - sample.position.z
+          if (Math.abs(xDirection) <= 1 && Math.abs(zDirection) <= 1) {
+            log.info(
+              `Updated direction: ${currentSample.position.x}, ${currentSample.position.z} -> ${x}, ${z}`
+            )
+            return samples.map((x) =>
+              x === currentSample
+                ? {
+                    ...currentSample,
+                    direction: {
+                      x: xDirection as Direction,
+                      z: zDirection as Direction,
+                    },
+                  }
+                : x
+            )
+          }
+        }
+        log.info(`Added sample: ${x}, ${y}, ${z}`)
+        return [...samples, sample]
+      })
     })
     return () => window.api.removeClipboardTextUpdatedListener()
-  }, [setCorners])
+  }, [setSamples])
 
   useEffect(() => {
     let minX, maxX, minZ, maxZ
-    for (const corner of corners) {
+    for (const corner of samples) {
       if (minX === undefined || corner.chunk.x < minX) minX = corner.chunk.x
       if (maxX === undefined || corner.chunk.x > maxX) maxX = corner.chunk.x
       if (minZ === undefined || corner.chunk.z < minZ) minZ = corner.chunk.z
       if (maxZ === undefined || corner.chunk.z > maxZ) maxZ = corner.chunk.z
     }
 
-    const xSort = [...corners].sort((a, b) => a.chunk.x - b.chunk.x)
-    const zSort = [...corners].sort((a, b) => a.chunk.z - b.chunk.z)
+    const xSort = [...samples].sort((a, b) => a.chunk.x - b.chunk.x)
+    const zSort = [...samples].sort((a, b) => a.chunk.z - b.chunk.z)
 
     let distX, distZ, foundX, foundZ
     for (let i = 0; i < xSort.length - 1; i++) {
@@ -112,7 +150,7 @@ function App() {
 
     if (foundX && foundZ) log.info(`Found solution: ${foundX}, ${foundZ}`)
     setSolution({ minX, maxX, minZ, maxZ, distX, distZ, foundX, foundZ })
-  }, [corners, setSolution])
+  }, [samples, setSamples, setSolution])
 
   const { minX, maxX, minZ, maxZ, distX, distZ, foundX, foundZ } = solution
 
@@ -146,7 +184,7 @@ function App() {
               icon={<RepeatIcon />}
               onClick={() => {
                 log.info(`Cleared`)
-                setCorners([])
+                setSamples([])
                 setSolution({})
               }}
             />
@@ -159,7 +197,7 @@ function App() {
             <ListIcon color="blue.300">
               <SettingsIcon />
             </ListIcon>
-            Setup bind for{' '}
+            Press F3+C in vanilla, or setup bind for{' '}
             <Link
               onClick={() =>
                 window.api.openBrowserWindow('https://www.lunarclient.com/')
@@ -233,11 +271,9 @@ function App() {
         />
         <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} />
         <Legend />
-        <Scatter
-          name="Corners"
-          data={corners.map((x) => x.chunk)}
-          fill={green500}
-        />
+        {samples.map((x, i) => (
+          <Scatter name={`Corner ${i + 1}`} data={[x.chunk]} fill={green500} />
+        ))}
         {foundX && foundZ && (
           <Scatter
             name="Solution"
@@ -255,6 +291,7 @@ function App() {
               <Th>Z</Th>
               <Th>Chunk X</Th>
               <Th>Chunk Z</Th>
+              <Td>→</Td>
               <Th></Th>
             </Tr>
           </Thead>
@@ -269,9 +306,10 @@ function App() {
                 <Td>{foundX}</Td>
                 <Td>{foundZ}</Td>
                 <Td></Td>
+                <Td></Td>
               </Tr>
             )}
-            {corners.map((corner, i) => (
+            {samples.map((corner, i) => (
               <Tr _hover={{ backgroundColor: 'blue.50' }}>
                 <Td>
                   <Icon as={CheckIcon} color="green.500" marginX="5px" />
@@ -280,6 +318,7 @@ function App() {
                 <Td>{corner.position.z}</Td>
                 <Td>{corner.chunk.x}</Td>
                 <Td>{corner.chunk.z}</Td>
+                <Td>{getDirectionArrow(corner.direction)}</Td>
                 <Td>
                   <IconButton
                     aria-label="Remove"
@@ -289,7 +328,7 @@ function App() {
                       log.info(
                         `Removed corner: ${corner.position.x}, ${corner.position.y}, ${corner.position.z}`
                       )
-                      setCorners(corners.filter((_, j) => i !== j))
+                      setSamples(samples.filter((_, j) => i !== j))
                     }}
                   />
                 </Td>
