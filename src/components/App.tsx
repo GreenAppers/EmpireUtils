@@ -285,7 +285,7 @@ function App() {
             </ListIcon>
             Move to a "corner" showing the entity in PieChart, but where the
             entity is missing from PieChart in the neighboring chunks in the X
-            and Z directions.
+            and Z directions. Look towards the entity.
           </ListItem>
           <ListItem>
             <ListIcon color="green.500">
