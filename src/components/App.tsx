@@ -44,8 +44,22 @@ import {
 import type { ScatterPointItem } from 'recharts/types/cartesian/Scatter'
 import type { ChunkDirection, Direction, Sample, Solution } from '../types'
 
-const vanillaCoords = /tp @s (-?\d+\.\d+) (-?\d+\.\d+) (-?\d+\.\d+)/
+const vanillaCoords =
+  /tp @s (-?\d+\.\d+) (-?\d+\.\d+) (-?\d+\.\d+) (-?\d+\.\d+)/
 const lunarClientCoords = /X: (-?\d+) Y: (-?\d+) Z: (-?\d+)/
+
+function getDirectionFromRotation(
+  rotation?: number
+): ChunkDirection | undefined {
+  if (typeof rotation !== 'number') return undefined
+  const angleInRadians = rotation * (Math.PI / 180)
+  const x = -Math.sin(angleInRadians)
+  const z = Math.cos(angleInRadians)
+  return {
+    x: Math.abs(x) > 0.5 ? (x > 0 ? 1 : -1) : 0,
+    z: Math.abs(z) > 0.5 ? (z > 0 ? 1 : -1) : 0,
+  }
+}
 
 function getDirectionArrow(direction?: ChunkDirection) {
   if (!direction) return ''
@@ -70,10 +84,10 @@ const ScatterArrow = (
       {direction ? (
         <g transform={`translate(${cx},${cy})`}>
           <text
-            alignment-baseline="middle"
+            alignmentBaseline="middle"
             fill={fill}
-            font-weight="bold"
-            text-anchor="middle"
+            fontWeight="bold"
+            textAnchor="middle"
           >
             {getDirectionArrow(direction)}
           </text>
@@ -91,10 +105,10 @@ const ScatterStar = (props: ScatterPointItem & { fill?: string }) => {
     <g>
       <g transform={`translate(${cx},${cy})`}>
         <text
-          alignment-baseline="middle"
+          alignmentBaseline="middle"
           fill={fill}
-          font-weight="bold"
-          text-anchor="middle"
+          fontWeight="bold"
+          textAnchor="middle"
         >
           {'★'}
         </text>
@@ -123,7 +137,10 @@ function App() {
 
   useEffect(() => {
     window.api.onClipboardTextUpdated((text: string) => {
+      let rotation: number | undefined
       let match = text.match(vanillaCoords)
+      if (match) rotation = parseFloat(match[4])
+
       if (!match) match = text.match(lunarClientCoords)
       if (!match) return
 
@@ -134,12 +151,13 @@ function App() {
       const sample: Sample = {
         chunk: { x: Math.floor(x / 16), z: Math.floor(z / 16) },
         position: { x, y, z },
+        direction: getDirectionFromRotation(rotation),
       }
 
       setSamples((samples) => {
         for (const currentSample of samples) {
-          const xDirection = currentSample.position.x - sample.position.x
-          const zDirection = currentSample.position.z - sample.position.z
+          const xDirection = sample.position.x - currentSample.position.x
+          const zDirection = sample.position.z - currentSample.position.z
           if (Math.abs(xDirection) <= 1 && Math.abs(zDirection) <= 1) {
             log.info(
               `Updated direction: ${currentSample.position.x}, ${currentSample.position.z} -> ${x}, ${z}`
@@ -317,6 +335,7 @@ function App() {
         <Legend />
         {samples.map((x, i) => (
           <Scatter
+            key={i}
             name={`Corner ${i + 1}`}
             data={[{ ...x.chunk, direction: x.direction }]}
             fill={green500}
@@ -360,7 +379,7 @@ function App() {
               </Tr>
             )}
             {samples.map((corner, i) => (
-              <Tr _hover={{ backgroundColor: 'blue.50' }}>
+              <Tr key={i} _hover={{ backgroundColor: 'blue.50' }}>
                 <Td>
                   <Icon as={CheckIcon} color="green.500" marginX="5px" />
                 </Td>
