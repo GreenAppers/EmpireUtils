@@ -32,14 +32,16 @@ import {
 import log from 'electron-log/renderer'
 import React, { useEffect, useState } from 'react'
 import {
-  ScatterChart,
   CartesianGrid,
+  Dot,
   Legend,
   Scatter,
+  ScatterChart,
   Tooltip as RechartsTooltip,
   XAxis,
   YAxis,
 } from 'recharts'
+import type { ScatterPointItem } from 'recharts/types/cartesian/Scatter'
 import type { ChunkDirection, Direction, Sample, Solution } from '../types'
 
 const vanillaCoords = /tp @s (-?\d+\.\d+) (-?\d+\.\d+) (-?\d+\.\d+)/
@@ -58,6 +60,48 @@ function getDirectionArrow(direction?: ChunkDirection) {
 }
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+
+const ScatterArrow = (
+  props: ScatterPointItem & { fill?: string; direction?: ChunkDirection }
+) => {
+  const { cx, cy, fill, direction } = props
+  return (
+    <g>
+      {direction ? (
+        <g transform={`translate(${cx},${cy})`}>
+          <text
+            alignment-baseline="middle"
+            fill={fill}
+            font-weight="bold"
+            text-anchor="middle"
+          >
+            {getDirectionArrow(direction)}
+          </text>
+        </g>
+      ) : (
+        <Dot cx={cx} cy={cy} r={5} fill={fill} />
+      )}
+    </g>
+  )
+}
+
+const ScatterStar = (props: ScatterPointItem & { fill?: string }) => {
+  const { cx, cy, fill } = props
+  return (
+    <g>
+      <g transform={`translate(${cx},${cy})`}>
+        <text
+          alignment-baseline="middle"
+          fill={fill}
+          font-weight="bold"
+          text-anchor="middle"
+        >
+          {'★'}
+        </text>
+      </g>
+    </g>
+  )
+}
 
 function App() {
   const [logfilePath, setLogfilePath] = useState('')
@@ -222,8 +266,8 @@ function App() {
               <CheckIcon />
             </ListIcon>
             Move to a "corner" showing the entity in PieChart, but where the
-            entity is missing from PieChart in the adjacent chunks in the X and
-            Z directions.
+            entity is missing from PieChart in the neighboring chunks in the X
+            and Z directions.
           </ListItem>
           <ListItem>
             <ListIcon color="green.500">
@@ -272,13 +316,19 @@ function App() {
         <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} />
         <Legend />
         {samples.map((x, i) => (
-          <Scatter name={`Corner ${i + 1}`} data={[x.chunk]} fill={green500} />
+          <Scatter
+            name={`Corner ${i + 1}`}
+            data={[{ ...x.chunk, direction: x.direction }]}
+            fill={green500}
+            shape={<ScatterArrow />}
+          />
         ))}
         {foundX && foundZ && (
           <Scatter
             name="Solution"
             data={[{ x: foundX, z: foundZ }]}
             fill={yellow300}
+            shape={<ScatterStar />}
           />
         )}
       </ScatterChart>
