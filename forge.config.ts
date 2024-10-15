@@ -20,7 +20,7 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({
       iconUrl:
-        'https://github.com/GreenAppers/EmpireUtils/blob/5e65f02151325e9036e3299ade6cee276a203fdc/images/icon.png',
+        'https://github.com/GreenAppers/EmpireUtils/blob/5e65f02151325e9036e3299ade6cee276a203fdc/images/icon.png?raw=true',
       setupIcon: './images/icon.ico',
     }),
     new MakerZIP({}, ['darwin']),

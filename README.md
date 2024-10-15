@@ -1,6 +1,6 @@
 # 🏰 Empire Utils
 
-![Logo](images/icon.png?raw=true "Logo")
+![Logo](images/logo.png?raw=true "Logo")
 
 Minecraft analytics and anti/PieRay helper.
 

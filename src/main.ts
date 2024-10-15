@@ -1,4 +1,11 @@
-import { app, BrowserWindow, clipboard, ipcMain, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  ipcMain,
+  session,
+  shell,
+} from 'electron'
 import fs from 'fs'
 import path from 'path'
 import isDev from 'electron-is-dev'
@@ -81,6 +88,16 @@ const createWindow = (): void => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self' 'unsafe-eval'; img-src 'self' https:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline';",
+        ],
+      },
+    })
+  })
   ipcMain.handle(
     getLogfilePathChannel,
     () => log.transports.file.getFile().path
