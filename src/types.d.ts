@@ -10,6 +10,11 @@ interface ChunkDirection {
   z: Direction
 }
 
+interface GameLog {
+  path: string
+  mtimeMs: number
+}
+
 type Direction = 1 | -1 | 0
 
 interface Sample {
@@ -27,6 +32,17 @@ interface Solution {
   distZ?: number
   foundX?: number
   foundZ?: number
+}
+
+interface TimeValue {
+  time: number
+  value: number
+}
+
+interface TimeSeries {
+  buckets: TimeValue[]
+  duration: number
+  samples: number
 }
 
 interface Vector3 {

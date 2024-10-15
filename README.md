@@ -1,4 +1,10 @@
-# 🥧📡 Anti/PieRay Helper
+# 🏰 Empire Utils
+
+![Logo](images/icon.png?raw=true "Logo")
+
+Minecraft analytics and anti/PieRay helper.
+
+## 🥧📡 Anti/PieRay Helper
 
 - Press F3+C in vanilla, or setup bind for [Lunar Client](https://www.lunarclient.com/) mod [Coordinates](https://lunarclient.dev/apollo/developers/mods/coordinates) to "Copy Coords to Clipboard".
 - Move to a "corner" showing the entity in PieChart, but where the entity is missing from PieChart in the neighboring chunks in the X and Z directions. Look towards the entity.

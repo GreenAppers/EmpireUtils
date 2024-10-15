@@ -65,7 +65,7 @@ const config: ForgeConfig = {
       config: {
         repository: {
           owner: 'GreenAppers',
-          name: 'PieRayHelper',
+          name: 'EmpireUtils',
         },
         prerelease: true,
       },
