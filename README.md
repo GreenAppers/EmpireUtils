@@ -12,6 +12,7 @@ Minecraft analytics and anti/PieRay helper.
 - Find two more corners: one with the same X chunk coordinate, one with the same Z chunk coordinate.
 - The solution is added.
 
+![Test6](images/test6.png?raw=true "Test6")
 ![Test5](images/test5.png?raw=true "Test5")
 ![Test1](images/test1.png?raw=true "Test1")
 ![Test2](images/test2.png?raw=true "Test2")

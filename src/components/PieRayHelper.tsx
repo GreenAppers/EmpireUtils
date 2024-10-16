@@ -218,8 +218,10 @@ export function PieRayHelper() {
   return (
     <>
       <Flex>
-        <Heading>🥧📡 Anti/PieRay Helper</Heading>
-        <Spacer />
+        <Heading>
+          <Tooltip label="Anti/PieRay Helper">🥧📡</Tooltip>
+        </Heading>
+        &nbsp;
         <Box>
           <Tooltip label="Show help">
             <IconButton
@@ -228,6 +230,7 @@ export function PieRayHelper() {
               onClick={() => setShowHelp(!showHelp)}
             />
           </Tooltip>
+          &nbsp;
           <Tooltip label="Open logfile">
             <IconButton
               aria-label="Logfile"
@@ -239,6 +242,7 @@ export function PieRayHelper() {
               }
             />
           </Tooltip>
+          &nbsp;
           <Tooltip label="Clear">
             <IconButton
               aria-label="Clear"

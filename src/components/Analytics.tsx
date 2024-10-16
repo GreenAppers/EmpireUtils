@@ -9,12 +9,12 @@ import {
 } from 'recharts'
 import type { GameLog, TimeSeries } from '../types'
 import { addSampleToTimeseries } from '../utils/timeseries'
-import { Heading, Link, Spacer } from '@chakra-ui/react'
+import { Heading, Link } from '@chakra-ui/react'
 
 const vanillaTimestamp = /^\[(\d\d:\d\d:\d\d)\]/
 const lunarTimestamp = /^\[(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d.\d\d\d)\]/
 
-const connectingTo = /Connecting to (\W),/
+const connectingTo = /Connecting to (\S+),/
 const soldContainer = /Successfully sold a container worth: \$([,\d]+.\d+)!/
 
 const contentDelimiter = ': '
@@ -168,7 +168,7 @@ export function Analytics() {
 
   return (
     <>
-      <Heading>{serverName || 'Analytics'}</Heading>
+      <Heading>📊 {serverName || ''}</Heading>
       <Heading as="h6" size="xs">
         Game log&nbsp;
         <Link
