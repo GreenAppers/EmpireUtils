@@ -4,58 +4,64 @@
 import { contextBridge, ipcRenderer } from 'electron/renderer'
 import {
   clipboardTextUpdatedChannel,
-  closeTailGameLogChannel,
-  findGameLogChannel,
   getLogfilePathChannel,
   openBrowserWindowChannel,
-  openTailGameLogChannel,
-  tailGameLogChannel,
+  openFileDialogChannel,
+  readGameLogsChannel,
 } from './constants'
-import type { GameLog } from './types'
 
-export type StringListener = (
+export type Listener<Args extends unknown[]> = (
   event: Electron.IpcRendererEvent,
-  value: string
+  ...args: Args
 ) => void
 
-export interface StringListenHandle {
+export interface ListenHandle<Args extends unknown[]> {
   channel: string
-  listener: StringListener
-  tailGameLog?: string
+  listener: Listener<Args>
 }
 
 export const api = {
+  openBrowserWindow: (url: string) =>
+    ipcRenderer.send(openBrowserWindowChannel, url),
+  openFileDialog: (path: string) =>
+    ipcRenderer.invoke(openFileDialogChannel, path),
   getLogfilePath: () => ipcRenderer.invoke(getLogfilePathChannel),
   onClipboardTextUpdated: (
     callback: (text: string) => void
-  ): StringListenHandle => {
-    const listener: StringListener = (_event, value) => callback(value)
+  ): ListenHandle<[string]> => {
+    const listener: Listener<[string]> = (_event, value) => callback(value)
     ipcRenderer.on(clipboardTextUpdatedChannel, listener)
     return { channel: clipboardTextUpdatedChannel, listener }
   },
-  findGameLog: () =>
-    ipcRenderer.invoke(findGameLogChannel) as Promise<GameLog[]>,
-  onTailGameLog: (
-    path: string,
-    callback: (line: string) => void
-  ): StringListenHandle => {
+  readGameLogs: (
+    callback: (
+      userName: string,
+      serverName: string,
+      content: string,
+      timestamp: Date,
+      source: string
+    ) => void,
+    beginDate?: Date,
+    endDate?: Date
+  ): ListenHandle<[string, string, string, Date, string]> => {
     ipcRenderer
-      .invoke(openTailGameLogChannel, path)
-      .catch((error) => console.log(`${openTailGameLogChannel} error`, error))
-    const channel = tailGameLogChannel(path)
-    const listener: StringListener = (_event, value) => callback(value)
-    ipcRenderer.on(channel, listener)
-    return { channel, listener, tailGameLog: path }
+      .invoke(readGameLogsChannel, beginDate, endDate)
+      .catch((error) => console.log(`${readGameLogsChannel} error`, error))
+    const listener: Listener<[string, string, string, Date, string]> = (
+      _event,
+      userName,
+      serverName,
+      content,
+      timestamp,
+      source
+    ) => callback(userName, serverName, content, timestamp, source)
+    ipcRenderer.on(readGameLogsChannel, listener)
+    return { channel: readGameLogsChannel, listener }
   },
-  openBrowserWindow: (url: string) =>
-    ipcRenderer.send(openBrowserWindowChannel, url),
-  removeListener: (handle: StringListenHandle) => {
+  removeListener: <Args extends unknown[]>(handle: ListenHandle<Args>) => {
     if (handle.listener)
       ipcRenderer.removeListener(handle.channel, handle.listener)
     else ipcRenderer.removeAllListeners(handle.channel)
-    if (handle.tailGameLog && ipcRenderer.listenerCount(handle.channel) === 0) {
-      ipcRenderer.invoke(closeTailGameLogChannel)
-    }
   },
 }
 
