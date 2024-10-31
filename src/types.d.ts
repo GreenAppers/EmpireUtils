@@ -34,6 +34,10 @@ interface Solution {
   foundZ?: number
 }
 
+type StoreSchema = {
+  gameLogDirectories: string[]
+}
+
 interface TimeValue {
   time: number
   value: number

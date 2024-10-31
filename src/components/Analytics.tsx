@@ -1,10 +1,25 @@
-import { Heading, IconButton, Link, Tooltip } from '@chakra-ui/react'
-import { EditIcon } from '@chakra-ui/icons'
+import {
+  Flex,
+  Heading,
+  IconButton,
+  Link,
+  List,
+  ListItem,
+  Select,
+  Tooltip,
+} from '@chakra-ui/react'
+import {
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EditIcon,
+  SettingsIcon,
+} from '@chakra-ui/icons'
 import React, { useEffect, useState } from 'react'
 
 import type { TimeSeries } from '../types'
 import { addSampleToTimeseries } from '../utils/timeseries'
 import TimeseriesChart from './TimeseriesChart'
+import { STORE_KEYS } from '../constants'
 
 interface AnalyticsWindow {
   beginDate?: Date
@@ -21,9 +36,28 @@ interface GameAnalytics {
 }
 
 const soldContainer = /Successfully sold a container worth: \$([,\d]+.\d+)!/
+const soldContainer2 = /Sold \d+ item\(s\) for \$([,\d]+.\d+)!/
 
 const playerKilledPVPLegacy =
   /(\S+) has been killed by (\S+) with ([.\d]+) health left./
+
+function topUpAnalyticsTimeSeries(analytics: Record<string, GameAnalytics>) {
+  const now = new Date()
+  const result = { ...analytics }
+  for (const key in analytics) {
+    const userAnalytics = analytics[key]
+    for (const seriesName in userAnalytics.timeSeries) {
+      const timeseries = userAnalytics.timeSeries[seriesName]
+      result[key].timeSeries[seriesName] = addSampleToTimeseries(
+        0,
+        now,
+        timeseries,
+        now
+      )
+    }
+  }
+  return result
+}
 
 function updateAnalyticsTimeSeries(
   analytics: Record<string, GameAnalytics>,
@@ -33,7 +67,7 @@ function updateAnalyticsTimeSeries(
   seriesName: string,
   value: number,
   timestamp: Date,
-  source: string
+  source?: string
 ) {
   const key = `${userName}@${serverName}`
   let userAnalytics = analytics[key]
@@ -54,13 +88,15 @@ function updateAnalyticsTimeSeries(
     }
   }
   timeseries = addSampleToTimeseries(value, timestamp, timeseries, timestamp)
-  return {
+  const result = {
     ...analytics,
     [key]: {
       ...userAnalytics,
       gamelogs: [
         ...userAnalytics.gamelogs,
-        ...(userAnalytics.gamelogs.find((x) => x === source) ? [] : [source]),
+        ...(!source || userAnalytics.gamelogs.find((x) => x === source)
+          ? []
+          : [source]),
       ],
       timeSeries: {
         ...userAnalytics.timeSeries,
@@ -68,22 +104,34 @@ function updateAnalyticsTimeSeries(
       },
     },
   }
+  // console.log('updateAnalyticsTimeSeries result', result)
+  return result
 }
 
 export function Analytics() {
   const [analytics, setAnalytics] = useState<Record<string, GameAnalytics>>({})
   const [analyticsProfile, setAnalyticsProfile] = useState('')
   const [analyticsWindow, setAnalyticsWindow] = useState<AnalyticsWindow>({
-    beginDate: new Date(new Date().setHours(0, 0, 0, 0)),
-    duration: 24 * 60 * 1000,
-    samples: 24 * 10,
+    beginDate: new Date(new Date().setHours(0, 0, 0, 0) - 24 * 60 * 60 * 1000),
+    duration: 60 * 1000,
+    samples: 24 * 60,
   })
+  const [gameLogDirectories, setGameLogDirectories] = useState<string[]>([])
+  const [showGameLogDirectories, setShowGameLogDirectories] = useState(false)
+  const [showGameLogFiles, setShowGameLogFiles] = useState(false)
+
+  // load store
+  useEffect(() => {
+    setGameLogDirectories(window.api.store.get(STORE_KEYS.gameLogDirectories))
+  }, [])
 
   useEffect(() => {
     let total = 0
     let earliestTimestamp: Date | undefined
+    if (!gameLogDirectories.length) return
 
     const handle = window.api.readGameLogs(
+      gameLogDirectories,
       (
         userName: string,
         serverName: string,
@@ -140,11 +188,21 @@ export function Analytics() {
           return
         }
 
+        let soldContainerValue = 0
         const soldContainerMatch = content.match(soldContainer)
         if (soldContainerMatch) {
-          const soldContainerValue = parseFloat(
+          soldContainerValue = parseFloat(
             soldContainerMatch[1].replace(/,/g, '')
           )
+        }
+        const soldContainerMatch2 = content.match(soldContainer2)
+        if (soldContainerMatch2) {
+          soldContainerValue = parseFloat(
+            soldContainerMatch2[1].replace(/,/g, '')
+          )
+        }
+
+        if (soldContainerValue) {
           total += soldContainerValue
           setAnalytics((analytics) =>
             updateAnalyticsTimeSeries(
@@ -162,7 +220,7 @@ export function Analytics() {
             (timestamp.getTime() - earliestTimestamp.getTime()) / 1000
           const ratePerMinute = (total * 60) / totalSeconds
           console.log(
-            'Sold container value',
+            `${userName}@${serverName} Sold container value`,
             soldContainerValue,
             'Total',
             total,
@@ -170,7 +228,9 @@ export function Analytics() {
             ratePerMinute.toFixed(2),
             'per minute',
             (ratePerMinute * 60).toFixed(2),
-            'per hour'
+            'per hour',
+            timestamp,
+            source
           )
           return
         }
@@ -179,56 +239,111 @@ export function Analytics() {
       analyticsWindow.endDate
     )
     return () => window.api.removeListener(handle)
-  }, [setAnalytics])
+  }, [analyticsWindow, gameLogDirectories, setAnalytics])
 
-  /*
   useEffect(() => {
+    setAnalytics(topUpAnalyticsTimeSeries)
     const handle = setInterval(
-      () =>
-        setSoldTimeseries((timeseries) =>
-          addSampleToTimeseries(0, new Date(), timeseries)
-        ),
+      () => setAnalytics(topUpAnalyticsTimeSeries),
       30 * 1000
     )
     return () => clearInterval(handle)
-  }, [setSoldTimeseries])
-*/
+  }, [setAnalytics])
 
-  const session: GameAnalytics | undefined =
-    analytics[analyticsProfile] || analytics[Object.keys(analytics)[0]]
+  const sessionName = analytics[analyticsProfile]
+    ? analyticsProfile
+    : Object.keys(analytics)[0] ?? ''
+  const session: GameAnalytics | undefined = analytics[sessionName]
 
   return (
     <>
       <Heading>
-        📊{' '}
-        {(session?.userName || '') +
-          (session?.userName && session?.serverName ? ' @ ' : '') +
-          (session?.serverName || '')}
+        <Flex>
+          📊&nbsp;
+          <Select
+            value={sessionName}
+            onChange={(event) => setAnalyticsProfile(event.target.value)}
+          >
+            {Object.keys(analytics).map((profile) => (
+              <option value={profile}>{profile}</option>
+            ))}
+          </Select>
+        </Flex>
       </Heading>
-      <Heading as="h6" size="xs">
-        Game log&nbsp;
-        <Link
-          onClick={() =>
-            window.api.openBrowserWindow(`file://${session?.gamelogs?.[0]}`)
-          }
-        >
-          {session?.gamelogs?.[0]}
-        </Link>
-        &nbsp;
-        <Tooltip label="Choose game log">
+
+      <Heading as="h6" size="xs" marginTop="1rem">
+        Game logs&nbsp;
+        <Tooltip label="Show game log files">
           <IconButton
-            aria-label="Game log"
-            icon={<EditIcon />}
-            onClick={() =>
-              window.api
-                .openFileDialog(session?.gamelogs?.[0])
-                .then((gameLogPath) => {
-                  console.log('setGameLogPath', gameLogPath)
-                })
-            }
+            aria-label="Game log files"
+            icon={showGameLogFiles ? <ChevronUpIcon /> : <ChevronDownIcon />}
+            onClick={() => setShowGameLogFiles((x) => !x)}
+          />
+        </Tooltip>
+        &nbsp;
+        <Tooltip label="Setup game log directories">
+          <IconButton
+            aria-label="Game log directories"
+            icon={<SettingsIcon />}
+            onClick={() => setShowGameLogDirectories((x) => !x)}
           />
         </Tooltip>
       </Heading>
+
+      {showGameLogFiles && (
+        <List>
+          {(session?.gamelogs ?? []).map((gamelog) => (
+            <ListItem>
+              <Link
+                onClick={() =>
+                  window.api.openBrowserWindow(`file://${gamelog}`)
+                }
+              >
+                {gamelog}
+              </Link>
+            </ListItem>
+          ))}
+        </List>
+      )}
+
+      {showGameLogDirectories && (
+        <>
+          <Heading as="h6" size="xs" marginTop="1rem">
+            Game log directories
+          </Heading>
+          <List>
+            {(gameLogDirectories ?? []).map((directory) => (
+              <ListItem>
+                <Link
+                  onClick={() =>
+                    window.api.openBrowserWindow(`file://${directory}`)
+                  }
+                >
+                  {directory}
+                </Link>
+              </ListItem>
+            ))}
+            <ListItem>
+              <Tooltip label="Add game log directory">
+                <>
+                  <IconButton
+                    aria-label="Add game log directory"
+                    icon={<EditIcon />}
+                    onClick={() =>
+                      window.api
+                        .openFileDialog(session?.gamelogs?.[0])
+                        .then((gameLogPath) => {
+                          console.log('setGameLogPath', gameLogPath)
+                        })
+                    }
+                  />
+                  &nbsp;Add directory
+                </>
+              </Tooltip>
+            </ListItem>
+          </List>
+        </>
+      )}
 
       <Heading as="h5" size="sm" marginTop="2rem">
         Kills

@@ -14,11 +14,14 @@ import log from 'electron-log/main'
 import './index.css'
 import {
   clipboardTextUpdatedChannel,
+  electronStoreGet,
+  electronStoreSet,
   getLogfilePathChannel,
   openBrowserWindowChannel,
   openFileDialogChannel,
   readGameLogsChannel,
 } from './constants'
+import { newStore } from './store'
 import {
   findGameLogFiles,
   newGameLogContext,
@@ -34,6 +37,7 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string
 
 const clipboardPollInterval = 500
 const gameLogContext = newGameLogContext()
+const store = newStore()
 
 let mainWindow: BrowserWindow | undefined
 let lastText = clipboard.readText()
@@ -88,6 +92,12 @@ app.on('ready', () => {
       },
     })
   })
+  ipcMain.on(electronStoreGet, (event, key: string) => {
+    event.returnValue = store.get(key)
+  })
+  ipcMain.on(electronStoreSet, (event, key: string, value: unknown) => {
+    store.set(key, value)
+  })
   ipcMain.on(openBrowserWindowChannel, (_event, url: string) =>
     shell.openExternal(url)
   )
@@ -102,18 +112,31 @@ app.on('ready', () => {
   )
   ipcMain.handle(
     readGameLogsChannel,
-    async (_event, startDate?: Date, endDate?: Date) => {
-      const logFiles = await findGameLogFiles(startDate, endDate)
-      readGameLogs(gameLogContext, logFiles, (context, content, timestamp, source) => {
-        mainWindow?.webContents.send(
-          readGameLogsChannel,
-          context.userName,
-          context.serverName,
-          content,
-          timestamp,
-          source
-        )
-      }).catch((error) => log.error('readGameLogChannel error', error))
+    async (
+      _event,
+      gameLogDirectories: string[],
+      startDate?: Date,
+      endDate?: Date
+    ) => {
+      const logFiles = await findGameLogFiles(
+        gameLogDirectories,
+        startDate,
+        endDate
+      )
+      readGameLogs(
+        gameLogContext,
+        logFiles,
+        (context, content, timestamp, source) => {
+          mainWindow?.webContents.send(
+            readGameLogsChannel,
+            context.userName,
+            context.serverName,
+            content,
+            timestamp,
+            source
+          )
+        }
+      ).catch((error) => log.error('readGameLogChannel error', error))
       return logFiles
     }
   )

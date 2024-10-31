@@ -33,7 +33,7 @@ function App() {
           <TabList>
             <Tab>Analytics</Tab>
             <Tab>Anti/PieRay</Tab>
-            <Tab>Nether Portals</Tab>
+            <Tab>Launcher</Tab>
             <Tab>Strongholds</Tab>
             <Tab>Waypoints</Tab>
           </TabList>

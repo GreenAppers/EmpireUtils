@@ -8,7 +8,6 @@ import {
   ListIcon,
   ListItem,
   Link,
-  Spacer,
   Table,
   TableContainer,
   Tbody,
@@ -324,14 +323,14 @@ export function PieRayHelper() {
           dataKey="x"
           type="number"
           name="x"
-          domain={[minX - 1, maxX + 1]}
+          domain={[(minX ?? 0) - 1, (maxX ?? 0) + 1]}
           allowDecimals={false}
         />
         <YAxis
           dataKey="z"
           type="number"
           name="z"
-          domain={[minZ - 1, maxZ + 1]}
+          domain={[(minZ ?? 0) - 1, (maxZ ?? 0) + 1]}
           allowDecimals={false}
         />
         <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} />
@@ -373,8 +372,8 @@ export function PieRayHelper() {
                 <Td>
                   <Icon as={StarIcon} color="yellow.300" marginX="5px" />
                 </Td>
-                <Td>{foundX * 16 + 8 * (1 + (distX % 2))}</Td>
-                <Td>{foundZ * 16 + 8 * (1 + (distZ % 2))}</Td>
+                <Td>{foundX * 16 + 8 * (1 + ((distX ?? 0) % 2))}</Td>
+                <Td>{foundZ * 16 + 8 * (1 + ((distZ ?? 0) % 2))}</Td>
                 <Td>{foundX}</Td>
                 <Td>{foundZ}</Td>
                 <Td></Td>

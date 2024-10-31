@@ -4,32 +4,38 @@ export function addSampleToTimeseries(
   value: number,
   timestamp: Date,
   timeseries: TimeSeries,
-  now = new Date()
+  adjustWindowNow?: Date | undefined
 ) {
   let changed = false
   const buckets = [...timeseries.buckets]
-  const lastBucket = now.getTime() - (now.getTime() % timeseries.duration)
-  const firstBucket =
-    lastBucket - (timeseries.samples - 1) * timeseries.duration
 
-  while (buckets.length && buckets[0].time < firstBucket) {
-    buckets.shift()
-    changed = true
+  if (adjustWindowNow) {
+    const minLastBucket =
+      adjustWindowNow.getTime() - (adjustWindowNow.getTime() % timeseries.duration)
+    const minFirstBucket =
+      minLastBucket - (timeseries.samples - 1) * timeseries.duration
+
+    while (buckets.length && buckets[0].time < minFirstBucket) {
+      buckets.shift()
+      changed = true
+    }
+
+    if (!buckets.length) {
+      buckets.push({ time: minFirstBucket, value: 0 })
+      changed = true
+    }
+
+    while (buckets.length < timeseries.samples) {
+      buckets.push({
+        time: buckets[buckets.length - 1].time + timeseries.duration,
+        value: 0,
+      })
+      changed = true
+    }
   }
 
-  if (!buckets.length) {
-    buckets.push({ time: firstBucket, value: 0 })
-    changed = true
-  }
-
-  while (buckets.length < timeseries.samples) {
-    buckets.push({
-      time: buckets[buckets.length - 1].time + timeseries.duration,
-      value: 0,
-    })
-    changed = true
-  }
-
+  const firstBucket = buckets[0].time
+  const lastBucket = buckets[buckets.length - 1].time
   if (
     timestamp.getTime() >= firstBucket &&
     timestamp.getTime() < lastBucket + timeseries.duration

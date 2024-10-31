@@ -4,7 +4,10 @@ import ReactDOM from 'react-dom/client'
 import './index.css'
 import App from './components/App'
 
-const root = ReactDOM.createRoot(document.getElementById('root'))
+const docRoot = document.getElementById('root')
+if (!docRoot) throw new Error('Root element not found')
+
+const root = ReactDOM.createRoot(docRoot)
 root.render(
   <React.StrictMode>
     <ChakraProvider>

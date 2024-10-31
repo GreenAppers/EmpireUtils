@@ -1,6 +1,11 @@
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
+import split2 from 'split2'
+import { pipeline, Transform } from 'stream'
 import { Tail } from 'tail'
+import util from 'util'
+import zlib from 'zlib'
 import type { GameLog } from '../types'
 
 export interface GameLogContext {
@@ -11,24 +16,19 @@ export interface GameLogContext {
   cycle: number
 }
 
+const readDir = util.promisify(fs.readdir)
+const statFile = util.promisify(fs.stat)
+const pipelineStreams = util.promisify(pipeline)
+
 const vanillaTimestamp = /^\[(\d\d:\d\d:\d\d)\]/
 const lunarTimestamp = /^\[(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d.\d\d\d)\]/
+const dateFilename = /^(\d\d\d\d-\d\d-\d\d)-\d\.log\.gz/
 
 const connectingTo = /Connecting to (\S+),/
 const settingUser = /Setting user: (\S+)/
 
 const contentDelimiter = ': '
-
-const gameLogDirectories = [
-  `${process.env.HOME}/Library/Application Support/minecraft/logs`,
-  `${process.env.HOME}/.lunarclient/logs/game`,
-].filter((path) => {
-  try {
-    return fs.statSync(path).isDirectory()
-  } catch {
-    return false
-  }
-})
+const activeGameLogMaxLastModified = 10 * 60 * 1000
 
 export const newGameLogContext = (): GameLogContext => ({
   serverName: '',
@@ -51,46 +51,107 @@ export function resetGameLogContext(
   for (const tail of tails) tail.unwatch()
 }
 
+export function getDefaultGameLogDirectories() {
+  const paths: string[] = []
+
+  switch (os.platform()) {
+    case 'darwin':
+      paths.push(
+        `${process.env.HOME}/Library/Application Support/minecraft/logs`
+      )
+      paths.push(`${process.env.HOME}/.lunarclient/offline/multiver/logs`)
+      break
+  }
+
+  return paths.filter((path) => {
+    try {
+      return fs.statSync(path).isDirectory()
+    } catch {
+      return false
+    }
+  })
+}
+
 export async function findGameLogFiles(
+  gameLogDirectories: string[],
   startDate?: Date,
   endDate?: Date
 ): Promise<GameLog[]> {
-  const logFiles = gameLogDirectories.flatMap((dir) => {
+  const logFiles: string[] = []
+  for (const dir of gameLogDirectories) {
     try {
-      return fs
-        .readdirSync(dir)
-        .filter((file) => file.endsWith('.log'))
-        .map((file) => path.join(dir, file))
+      const files = await readDir(dir)
+      logFiles.push(
+        ...files
+          .filter((file) => file.endsWith('.log') || file.endsWith('.log.gz'))
+          .map((file) => path.join(dir, file))
+      )
     } catch {
-      return []
+      continue
     }
-  })
-  const logFilesWithMtime: GameLog[] = logFiles.map((path) => ({
-    path,
-    mtimeMs: fs.statSync(path).mtimeMs,
-  }))
+  }
+
+  const logFilesWithMtime: GameLog[] = []
+  for (const path of logFiles) {
+    logFilesWithMtime.push({
+      path,
+      mtimeMs: (await statFile(path)).mtimeMs,
+    })
+  }
   logFilesWithMtime.sort((a, b) => a.mtimeMs - b.mtimeMs)
-  return logFilesWithMtime.filter(
+  const result = logFilesWithMtime.filter(
     (x) =>
       (!startDate || x.mtimeMs >= startDate.getTime()) &&
       (!endDate || x.mtimeMs <= endDate.getTime())
   )
+  console.log('findGameLogFiles', startDate, endDate, result)
+  return result
 }
 
 export async function readGameLogs(
   context: GameLogContext,
   gamelogs: GameLog[],
-  callback: (context: GameLogContext, content: string, timestamp: Date, path: string) => void
+  callback: (
+    context: GameLogContext,
+    content: string,
+    timestamp: Date,
+    path: string
+  ) => void
 ) {
+  const handleGameLogLine = (line: string, path: string) => {
+    const parsed = parseGameLogLine(context, line, path)
+    if (parsed) callback(context, parsed.content, parsed.timestamp, path)
+  }
+
   resetGameLogContext(context, gamelogs)
   const myCycle = context.cycle
+  const now = new Date()
+
   for (const gamelog of context.files) {
     if (context.cycle !== myCycle) return
-    const tail = new Tail(gamelog.path, { fromBeginning: true, follow: true })
+    const isGzipped = gamelog.path.endsWith('.gz')
+    await pipelineStreams([
+      fs.createReadStream(gamelog.path),
+      ...(isGzipped ? [zlib.createGunzip()] : []),
+      split2(),
+      new Transform({
+        objectMode: true,
+        transform(line, _, callback) {
+          handleGameLogLine(line, gamelog.path)
+          callback()
+        },
+      }),
+    ])
+    if (
+      isGzipped ||
+      now.getTime() - gamelog.mtimeMs > activeGameLogMaxLastModified
+    )
+      continue
+
+    const tail = new Tail(gamelog.path, { fromBeginning: false, follow: true })
     tail.on('line', (line) => {
       if (context.cycle !== myCycle) return
-      const parsed = parseGameLogLine(context, line)
-      if (parsed) callback(context, parsed.content, parsed.timestamp, gamelog.path)
+      handleGameLogLine(line, gamelog.path)
     })
     tail.on('error', (error) => {
       console.error(`Error tailing ${gamelog.path}`, error)
@@ -102,21 +163,30 @@ export async function readGameLogs(
 export function parseGameLogLine(
   context: GameLogContext,
   line: string,
+  source: string,
   now = new Date()
 ) {
-  const vanillaTimestampMatch = line.match(vanillaTimestamp)
-  let timestamp: Date
-  if (vanillaTimestampMatch)
-    timestamp = new Date(
-      new Date().toLocaleDateString() + ' ' + vanillaTimestampMatch[1]
-    )
-  const lunarTimestampMatch = line.match(lunarTimestamp)
-  if (lunarTimestampMatch) timestamp = new Date(lunarTimestampMatch[1])
-  if (!timestamp) timestamp = now
-
   const contentDelimiterIndex = line.indexOf(contentDelimiter)
   if (contentDelimiterIndex < 0) return
   const content = line.slice(contentDelimiterIndex + contentDelimiter.length)
+
+  let timestamp: Date | undefined
+  const vanillaTimestampMatch = line.match(vanillaTimestamp)
+  if (vanillaTimestampMatch) {
+    const dateFilenameMatch = path.basename(source).match(dateFilename)
+    const day = dateFilenameMatch
+      ? dateFilenameMatch[1]
+      : new Date().toLocaleDateString()
+    timestamp = new Date(`${day} ${vanillaTimestampMatch[1]}`)
+  }
+  const lunarTimestampMatch = line.match(lunarTimestamp)
+  if (lunarTimestampMatch) {
+    timestamp = new Date(lunarTimestampMatch[1])
+  }
+  if (!timestamp) {
+    console.error('No timestamp found in line', line)
+    timestamp = now
+  }
 
   const connectingToMatch = content.match(connectingTo)
   if (connectingToMatch) context.serverName = connectingToMatch[1]

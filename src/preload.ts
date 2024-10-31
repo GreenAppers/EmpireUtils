@@ -4,6 +4,8 @@
 import { contextBridge, ipcRenderer } from 'electron/renderer'
 import {
   clipboardTextUpdatedChannel,
+  electronStoreGet,
+  electronStoreSet,
   getLogfilePathChannel,
   openBrowserWindowChannel,
   openFileDialogChannel,
@@ -34,6 +36,7 @@ export const api = {
     return { channel: clipboardTextUpdatedChannel, listener }
   },
   readGameLogs: (
+    gameLogDirectories: string[],
     callback: (
       userName: string,
       serverName: string,
@@ -45,7 +48,7 @@ export const api = {
     endDate?: Date
   ): ListenHandle<[string, string, string, Date, string]> => {
     ipcRenderer
-      .invoke(readGameLogsChannel, beginDate, endDate)
+      .invoke(readGameLogsChannel, gameLogDirectories, beginDate, endDate)
       .catch((error) => console.log(`${readGameLogsChannel} error`, error))
     const listener: Listener<[string, string, string, Date, string]> = (
       _event,
@@ -62,6 +65,11 @@ export const api = {
     if (handle.listener)
       ipcRenderer.removeListener(handle.channel, handle.listener)
     else ipcRenderer.removeAllListeners(handle.channel)
+  },
+  store: {
+    get: (key: string) => ipcRenderer.sendSync(electronStoreGet, key),
+    set: (key: string, value: unknown) =>
+      ipcRenderer.send(electronStoreSet, key, value),
   },
 }
 
