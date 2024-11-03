@@ -19,7 +19,8 @@ import React, { useEffect, useState } from 'react'
 import type { TimeSeries } from '../types'
 import { addSampleToTimeseries } from '../utils/timeseries'
 import TimeseriesChart from './TimeseriesChart'
-import { STORE_KEYS } from '../constants'
+import { QUERY_KEYS, STORE_KEYS } from '../constants'
+import { useQuery } from '@tanstack/react-query'
 
 interface AnalyticsWindow {
   beginDate?: Date
@@ -108,6 +109,15 @@ function updateAnalyticsTimeSeries(
   return result
 }
 
+export const useGameLogDirectoriesQuery = () =>
+  useQuery<string[]>({
+    queryKey: [QUERY_KEYS.useGameLogDirectories],
+    queryFn: () => window.api.store.get(STORE_KEYS.gameLogDirectories),
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+
 export function Analytics() {
   const [analytics, setAnalytics] = useState<Record<string, GameAnalytics>>({})
   const [analyticsProfile, setAnalyticsProfile] = useState('')
@@ -116,22 +126,18 @@ export function Analytics() {
     duration: 60 * 1000,
     samples: 24 * 60,
   })
-  const [gameLogDirectories, setGameLogDirectories] = useState<string[]>([])
+  const gameLogDirectories = useGameLogDirectoriesQuery()
   const [showGameLogDirectories, setShowGameLogDirectories] = useState(false)
   const [showGameLogFiles, setShowGameLogFiles] = useState(false)
-
-  // load store
-  useEffect(() => {
-    setGameLogDirectories(window.api.store.get(STORE_KEYS.gameLogDirectories))
-  }, [])
 
   useEffect(() => {
     let total = 0
     let earliestTimestamp: Date | undefined
-    if (!gameLogDirectories.length) return
+    if (!gameLogDirectories.isSuccess || !gameLogDirectories.data?.length)
+      return
 
     const handle = window.api.readGameLogs(
-      gameLogDirectories,
+      gameLogDirectories.data,
       (
         userName: string,
         serverName: string,
@@ -239,7 +245,12 @@ export function Analytics() {
       analyticsWindow.endDate
     )
     return () => window.api.removeListener(handle)
-  }, [analyticsWindow, gameLogDirectories, setAnalytics])
+  }, [
+    analyticsWindow,
+    gameLogDirectories.isSuccess,
+    gameLogDirectories.data,
+    setAnalytics,
+  ])
 
   useEffect(() => {
     setAnalytics(topUpAnalyticsTimeSeries)
@@ -293,7 +304,7 @@ export function Analytics() {
       {showGameLogFiles && (
         <List>
           {(session?.gamelogs ?? []).map((gamelog) => (
-            <ListItem>
+            <ListItem key={gamelog}>
               <Link
                 onClick={() =>
                   window.api.openBrowserWindow(`file://${gamelog}`)
@@ -312,8 +323,8 @@ export function Analytics() {
             Game log directories
           </Heading>
           <List>
-            {(gameLogDirectories ?? []).map((directory) => (
-              <ListItem>
+            {(gameLogDirectories.data ?? []).map((directory) => (
+              <ListItem key={directory}>
                 <Link
                   onClick={() =>
                     window.api.openBrowserWindow(`file://${directory}`)

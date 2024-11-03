@@ -2,15 +2,9 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from 'electron/renderer'
-import {
-  clipboardTextUpdatedChannel,
-  electronStoreGet,
-  electronStoreSet,
-  getLogfilePathChannel,
-  openBrowserWindowChannel,
-  openFileDialogChannel,
-  readGameLogsChannel,
-} from './constants'
+import { v4 as uuidv4 } from 'uuid'
+
+import { CHANNELS, GameInstall, LAUNCH_CHANNEL } from './constants'
 
 export type Listener<Args extends unknown[]> = (
   event: Electron.IpcRendererEvent,
@@ -23,17 +17,36 @@ export interface ListenHandle<Args extends unknown[]> {
 }
 
 export const api = {
+  getLogfilePath: () => ipcRenderer.invoke(CHANNELS.getLogfilePath),
+  createGameInstall: (gameInstall: GameInstall): Promise<GameInstall> =>
+    ipcRenderer.invoke(CHANNELS.createGameInstall, gameInstall),
+  deleteGameInstall: (gameInstall: GameInstall): Promise<boolean> =>
+    ipcRenderer.invoke(CHANNELS.deleteGameInstall, gameInstall),
+  launchGameInstall: (
+    gameInstall: GameInstall,
+    callback: (text: string) => void
+  ): ListenHandle<[string]> => {
+    const launchId = uuidv4()
+    ipcRenderer
+      .invoke(CHANNELS.launchGameInstall, gameInstall, launchId)
+      .catch((error) =>
+        console.log(`${CHANNELS.launchGameInstall} error`, error)
+      )
+    const listener: Listener<[string]> = (_event, text) => callback(text)
+    const channel = LAUNCH_CHANNEL(launchId)
+    ipcRenderer.on(channel, listener)
+    return { channel, listener }
+  },
   openBrowserWindow: (url: string) =>
-    ipcRenderer.send(openBrowserWindowChannel, url),
+    ipcRenderer.send(CHANNELS.openBrowserWindow, url),
   openFileDialog: (path: string) =>
-    ipcRenderer.invoke(openFileDialogChannel, path),
-  getLogfilePath: () => ipcRenderer.invoke(getLogfilePathChannel),
+    ipcRenderer.invoke(CHANNELS.openFileDialog, path),
   onClipboardTextUpdated: (
     callback: (text: string) => void
   ): ListenHandle<[string]> => {
     const listener: Listener<[string]> = (_event, value) => callback(value)
-    ipcRenderer.on(clipboardTextUpdatedChannel, listener)
-    return { channel: clipboardTextUpdatedChannel, listener }
+    ipcRenderer.on(CHANNELS.clipboardTextUpdated, listener)
+    return { channel: CHANNELS.clipboardTextUpdated, listener }
   },
   readGameLogs: (
     gameLogDirectories: string[],
@@ -48,8 +61,8 @@ export const api = {
     endDate?: Date
   ): ListenHandle<[string, string, string, Date, string]> => {
     ipcRenderer
-      .invoke(readGameLogsChannel, gameLogDirectories, beginDate, endDate)
-      .catch((error) => console.log(`${readGameLogsChannel} error`, error))
+      .invoke(CHANNELS.readGameLogs, gameLogDirectories, beginDate, endDate)
+      .catch((error) => console.log(`${CHANNELS.readGameLogs} error`, error))
     const listener: Listener<[string, string, string, Date, string]> = (
       _event,
       userName,
@@ -58,8 +71,8 @@ export const api = {
       timestamp,
       source
     ) => callback(userName, serverName, content, timestamp, source)
-    ipcRenderer.on(readGameLogsChannel, listener)
-    return { channel: readGameLogsChannel, listener }
+    ipcRenderer.on(CHANNELS.readGameLogs, listener)
+    return { channel: CHANNELS.readGameLogs, listener }
   },
   removeListener: <Args extends unknown[]>(handle: ListenHandle<Args>) => {
     if (handle.listener)
@@ -67,12 +80,13 @@ export const api = {
     else ipcRenderer.removeAllListeners(handle.channel)
   },
   store: {
-    get: (key: string) => ipcRenderer.sendSync(electronStoreGet, key),
+    get: (key: string) => ipcRenderer.invoke(CHANNELS.electronStoreGet, key),
     set: (key: string, value: unknown) =>
-      ipcRenderer.send(electronStoreSet, key, value),
+      ipcRenderer.send(CHANNELS.electronStoreSet, key, value),
   },
 }
 
 process.once('loaded', () => {
   contextBridge.exposeInMainWorld('api', api)
 })
+

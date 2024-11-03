@@ -40,7 +40,12 @@ import {
   YAxis,
 } from 'recharts'
 import type { ScatterPointItem } from 'recharts/types/cartesian/Scatter'
-import type { ChunkDirection, Direction, Sample, Solution } from '../types'
+import type {
+  ChunkDirection,
+  Direction,
+  PieRaySample,
+  PieRaySolution,
+} from '../types'
 
 const vanillaCoords =
   /tp @s (-?\d+\.\d+) (-?\d+\.\d+) (-?\d+\.\d+) (-?\d+\.\d+)/
@@ -117,8 +122,8 @@ const ScatterStar = (props: ScatterPointItem & { fill?: string }) => {
 
 export function PieRayHelper() {
   const [logfilePath, setLogfilePath] = useState('')
-  const [samples, setSamples] = useState([] as Sample[])
-  const [solution, setSolution] = useState({} as Solution)
+  const [samples, setSamples] = useState([] as PieRaySample[])
+  const [solution, setSolution] = useState({} as PieRaySolution)
   const [showHelp, setShowHelp] = useState(false)
 
   const [green500, yellow300] = useToken(
@@ -146,7 +151,7 @@ export function PieRayHelper() {
       const y = parseInt(match[2])
       const z = parseInt(match[3])
 
-      const sample: Sample = {
+      const sample: PieRaySample = {
         chunk: { x: Math.floor(x / 16), z: Math.floor(z / 16) },
         position: { x, y, z },
         direction: getDirectionFromRotation(rotation),
