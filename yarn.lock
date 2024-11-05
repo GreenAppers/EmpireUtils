@@ -6351,6 +6351,11 @@ p-map@^4.0.0:
   dependencies:
     aggregate-error "^3.0.0"
 
+p-reflect@^3.1.0:
+  version "3.1.0"
+  resolved "https://registry.yarnpkg.com/p-reflect/-/p-reflect-3.1.0.tgz#bba22747439b5fc50a7f626e8e909dc9b888218d"
+  integrity sha512-3sG3UlpisPSaX+o7u2q01hIQmrpkvdl5GSO1ZwL7pfc5kHB2bPF0eFNCfYTrW1/LTUdgmPwBAvmT0Zr8eSmaAQ==
+
 p-retry@^4.5.0:
   version "4.6.2"
   resolved "https://registry.yarnpkg.com/p-retry/-/p-retry-4.6.2.tgz#9baae7184057edd4e17231cee04264106e092a16"
@@ -6358,6 +6363,14 @@ p-retry@^4.5.0:
   dependencies:
     "@types/retry" "0.12.0"
     retry "^0.13.1"
+
+p-settle@^5.1.1:
+  version "5.1.1"
+  resolved "https://registry.yarnpkg.com/p-settle/-/p-settle-5.1.1.tgz#9300778f896d5c01e4361b8ab45d003548574c3e"
+  integrity sha512-VLgSBpA71aMncPVP5Es4nhQYxcxN0lit8hGlobJke8YTAhtwdRDu/s4KePP5gCT5LFfZty3qosBFYMgD5rFpCg==
+  dependencies:
+    p-limit "^4.0.0"
+    p-reflect "^3.1.0"
 
 p-try@^1.0.0:
   version "1.0.0"

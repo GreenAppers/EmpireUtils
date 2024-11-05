@@ -16,6 +16,75 @@ export const mojangVersionManifests = z.object({
   versions: z.array(mojangVersionManifest),
 })
 
+export const mojangRule = z.object({
+  action: z.string(),
+  features: z.optional(z.record(z.string(), z.boolean())),
+  os: z.optional(z.object({
+    arch: z.optional(z.string()),
+    name: z.optional(z.string()),
+  })),
+})
+
+export const mojangStringsTemplate = z.array(
+  z.union([
+    z.string(),
+    z.object({
+      rules: z.array(mojangRule),
+      value: z.union([z.string(), z.array(z.string())]),
+    }),
+  ])
+)
+
+export const mojangHash = z.object({
+  sha1: z.string(),
+  size: z.number(),
+  url: z.string(),
+})
+
+export const mojangArtifact = mojangHash.extend({
+  path: z.string(),
+})
+
+export const mojangVersionDetails = z.object({
+  arguments: z.object({
+    game: mojangStringsTemplate,
+    jvm: mojangStringsTemplate,
+  }),
+  assetIndex: mojangHash.extend({
+    id: z.string(),
+    totalSize: z.number(),
+  }),
+  assets: z.string(),
+  complianceLevel: z.number(),
+  downloads: z.record(z.string(), mojangHash),
+  id: z.string(),
+  javaVersion: z.object({
+    component: z.string(),
+    majorVersion: z.number(),
+  }),
+  libraries: z.array(
+    z.object({
+      downloads: z.object({
+        artifact: mojangArtifact,
+      }),
+      name: z.string(),
+      rules: z.optional(z.array(mojangRule)),
+    })
+  ),
+  logging: z.object({
+    client: z.object({
+      argument: z.string(),
+      file: mojangHash.extend({ id: z.string() }),
+      type: z.string(),
+    }),
+  }),
+  mainClass: z.string(),
+  minimumLauncherVersion: z.number(),
+  releaseTime: z.string(),
+  time: z.string(),
+  type: z.string(),
+})
+
 export const gameInstall = z.object({
   name: z.string(),
   path: z.string(),
@@ -23,6 +92,8 @@ export const gameInstall = z.object({
   versionManifest: mojangVersionManifest,
 })
 
+export type MojangRule = z.infer<typeof mojangRule>
+export type MojangStringsTemplate = z.infer<typeof mojangStringsTemplate>
 export type MojangVersionManifest = z.infer<typeof mojangVersionManifest>
 export type MojangVersionManifests = z.infer<typeof mojangVersionManifests>
 export type GameInstall = z.infer<typeof gameInstall>

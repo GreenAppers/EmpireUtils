@@ -118,9 +118,9 @@ app.on('ready', () => {
   )
   ipcMain.handle(
     CHANNELS.launchGameInstall,
-    async (_event, gameInstall: GameInstall, launchId: string) => {
+    async (_event, launchId: string, gameInstall: GameInstall) => {
       const channel = LAUNCH_CHANNEL(launchId)
-      launchInstall(gameInstall, (update) => {
+      launchInstall(launchId, gameInstall, (update) => {
         mainWindow?.webContents.send(channel, update)
       }).catch((error) => log.error('launchGameInstall error', error))
       return true

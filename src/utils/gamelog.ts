@@ -2,9 +2,8 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 import split2 from 'split2'
-import { pipeline, Transform } from 'stream'
+import stream from 'stream'
 import { Tail } from 'tail'
-import util from 'util'
 import zlib from 'zlib'
 import type { GameLog } from '../types'
 
@@ -15,10 +14,6 @@ export interface GameLogContext {
   tail: Tail[]
   cycle: number
 }
-
-const readDir = util.promisify(fs.readdir)
-const statFile = util.promisify(fs.stat)
-const pipelineStreams = util.promisify(pipeline)
 
 const vanillaTimestamp = /^\[(\d\d:\d\d:\d\d)\]/
 const lunarTimestamp = /^\[(\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d.\d\d\d)\]/
@@ -80,7 +75,7 @@ export async function findGameLogFiles(
   const logFiles: string[] = []
   for (const dir of gameLogDirectories) {
     try {
-      const files = await readDir(dir)
+      const files = await fs.promises.readdir(dir)
       logFiles.push(
         ...files
           .filter((file) => file.endsWith('.log') || file.endsWith('.log.gz'))
@@ -95,7 +90,7 @@ export async function findGameLogFiles(
   for (const path of logFiles) {
     logFilesWithMtime.push({
       path,
-      mtimeMs: (await statFile(path)).mtimeMs,
+      mtimeMs: (await fs.promises.stat(path)).mtimeMs,
     })
   }
   logFilesWithMtime.sort((a, b) => a.mtimeMs - b.mtimeMs)
@@ -130,11 +125,11 @@ export async function readGameLogs(
   for (const gamelog of context.files) {
     if (context.cycle !== myCycle) return
     const isGzipped = gamelog.path.endsWith('.gz')
-    await pipelineStreams([
+    await stream.promises.pipeline([
       fs.createReadStream(gamelog.path),
       ...(isGzipped ? [zlib.createGunzip()] : []),
       split2(),
-      new Transform({
+      new stream.Transform({
         objectMode: true,
         transform(line, _, callback) {
           handleGameLogLine(line, gamelog.path)

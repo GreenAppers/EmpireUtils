@@ -2,7 +2,6 @@
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
 
 import { contextBridge, ipcRenderer } from 'electron/renderer'
-import { v4 as uuidv4 } from 'uuid'
 
 import { CHANNELS, GameInstall, LAUNCH_CHANNEL } from './constants'
 
@@ -23,12 +22,12 @@ export const api = {
   deleteGameInstall: (gameInstall: GameInstall): Promise<boolean> =>
     ipcRenderer.invoke(CHANNELS.deleteGameInstall, gameInstall),
   launchGameInstall: (
+    launchId: string,
     gameInstall: GameInstall,
     callback: (text: string) => void
   ): ListenHandle<[string]> => {
-    const launchId = uuidv4()
     ipcRenderer
-      .invoke(CHANNELS.launchGameInstall, gameInstall, launchId)
+      .invoke(CHANNELS.launchGameInstall, launchId, gameInstall)
       .catch((error) =>
         console.log(`${CHANNELS.launchGameInstall} error`, error)
       )
@@ -89,4 +88,3 @@ export const api = {
 process.once('loaded', () => {
   contextBridge.exposeInMainWorld('api', api)
 })
-

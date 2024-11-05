@@ -6,6 +6,7 @@ import {
   FormLabel,
   Heading,
   IconButton,
+  Image,
   Input,
   List,
   ListItem,
@@ -20,10 +21,12 @@ import {
   Spinner,
   Tooltip,
 } from '@chakra-ui/react'
+import { SettingsIcon } from '@chakra-ui/icons'
 import { AddIcon } from '@chakra-ui/icons'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import React, { useEffect, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { v4 as uuidv4 } from 'uuid'
 
 import {
   GameInstall,
@@ -71,6 +74,23 @@ export const useCreateGameInstallMutation = (options?: {
     },
     onError: (error) => {
       if (options?.callback) options.callback(undefined, error)
+    },
+  })
+}
+
+export const useDeleteGameInstallMutation = (options?: {
+  callback?: (error?: unknown) => void
+}) => {
+  const queryClient = useQueryClient()
+  return useMutation<boolean, unknown, GameInstall>({
+    mutationFn: (deleteGameInstall) =>
+      window.api.deleteGameInstall(deleteGameInstall),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.useGameInstalls] })
+      if (options?.callback) options.callback(undefined)
+    },
+    onError: (error) => {
+      if (options?.callback) options.callback(error)
     },
   })
 }
@@ -129,57 +149,99 @@ export function NewGameInstall(props: {
     versionManifests.data,
   ])
 
-  if (versionManifests.isError)
-    return (
-      <>
-        <Box>Error loading version manifests</Box>
-        {versionManifests.error.message}
-      </>
-    )
-
-  if (!versionManifests.isSuccess || createGameInstallMutation.isPending)
-    return <Spinner />
-
   return (
     <Modal isOpen={props.isOpen} onClose={props.onClose}>
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>New Install</ModalHeader>
         <ModalCloseButton />
+        {versionManifests.isError ? (
+          <ModalBody>
+            Error loading version manifests
+            {versionManifests.error.message}
+          </ModalBody>
+        ) : !versionManifests.isSuccess ||
+          createGameInstallMutation.isPending ? (
+          <ModalBody>
+            <Spinner />
+          </ModalBody>
+        ) : (
+          <ModalBody>
+            <FormControl>
+              <FormLabel>Version</FormLabel>
+              <Select
+                value={newInstall.versionManifest?.id}
+                onChange={(event) =>
+                  updateNewInstallVersionManifest(event.target.value)
+                }
+              >
+                {versionManifests.data.versions.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.id}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl>
+              <FormLabel>Name</FormLabel>
+              <Input
+                type="name"
+                value={newInstall.name}
+                onChange={(event) =>
+                  setNewInstall((prev) => ({
+                    ...prev,
+                    name: event.target.value,
+                  }))
+                }
+              />
+            </FormControl>
+          </ModalBody>
+        )}
+        <ModalFooter>
+          {versionManifests.isSuccess &&
+            !createGameInstallMutation.isPending && (
+              <Button
+                mr={3}
+                onClick={() => createGameInstallMutation.mutate(newInstall)}
+              >
+                Create
+              </Button>
+            )}
+        </ModalFooter>
+      </ModalContent>
+    </Modal>
+  )
+}
+
+export function LaunchGameInstall(props: {
+  isOpen: boolean
+  launchId: string
+  install: GameInstall
+  onClose: () => void
+}) {
+  useEffect(() => {
+    if (!props.isOpen || !props.launchId) return
+    const handle = window.api.launchGameInstall(
+      props.launchId,
+      props.install,
+      (text) => {
+        console.log(props.launchId, text)
+      }
+    )
+    return () => window.api.removeListener(handle)
+  }, [props.isOpen, props.launchId])
+
+  return (
+    <Modal isOpen={props.isOpen} onClose={props.onClose}>
+      <ModalOverlay />
+      <ModalContent>
+        <ModalHeader>Launching {props.install.name}</ModalHeader>
+        <ModalCloseButton />
         <ModalBody>
-          <FormControl>
-            <FormLabel>Version</FormLabel>
-            <Select
-              value={newInstall.versionManifest?.id}
-              onChange={(event) =>
-                updateNewInstallVersionManifest(event.target.value)
-              }
-            >
-              {versionManifests.data.versions.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.id}
-                </option>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl>
-            <FormLabel>Name</FormLabel>
-            <Input
-              type="name"
-              value={newInstall.name}
-              onChange={(event) =>
-                setNewInstall((prev) => ({ ...prev, name: event.target.value }))
-              }
-            />
-          </FormControl>
+          <Spinner />
         </ModalBody>
         <ModalFooter>
-          <Button
-            mr={3}
-            onClick={() => createGameInstallMutation.mutate(newInstall)}
-          >
-            Create
-          </Button>
+          <Button onClick={props.onClose}>Close</Button>
         </ModalFooter>
       </ModalContent>
     </Modal>
@@ -189,6 +251,9 @@ export function NewGameInstall(props: {
 export function Launcher() {
   const gameInstalls = useGameInstallsQuery()
   const [showNewInstall, setShowNewInstall] = useState(false)
+  const [launched, setLaunched] = useState<
+    Record<string, { install: GameInstall; show: boolean }>
+  >({})
 
   return (
     <>
@@ -214,10 +279,60 @@ export function Launcher() {
         />
       )}
 
-      <List>
+      {Object.entries(launched).map(
+        ([id, { install, show }]) =>
+          show && (
+            <LaunchGameInstall
+              key={id}
+              launchId={id}
+              install={install}
+              isOpen={show}
+              onClose={() =>
+                setLaunched((prev) => ({
+                  ...prev,
+                  [id]: { ...prev[id], show: false },
+                }))
+              }
+            />
+          )
+      )}
+
+      <List marginTop="1rem">
         {gameInstalls.isSuccess &&
-          gameInstalls.data.map((x) => (
-            <ListItem key={x.name}>{x.name}</ListItem>
+          gameInstalls.data.map((x, i) => (
+            <ListItem key={x.name} height="5rem">
+              <Flex>
+                <IconButton
+                  aria-label="gameInstall"
+                  marginRight="1rem"
+                  width="4rem"
+                  icon={
+                    <Image
+                      src={
+                        i % 2 === 0
+                          ? 'https://github.com/GreenAppers/EmpireUtils/blob/dd24bcbefda54039d8882b41e16cf455403d3aa9/images/icons/grassblock.png?raw=true'
+                          : 'https://github.com/GreenAppers/EmpireUtils/blob/dd24bcbefda54039d8882b41e16cf455403d3aa9/images/icons/creeper.png?raw=true'
+                      }
+                    />
+                  }
+                  onClick={() =>
+                    setLaunched((prev) => ({
+                      ...prev,
+                      [uuidv4()]: { install: x, show: true },
+                    }))
+                  }
+                />
+                <Box>
+                  <Heading as="h5" size="sm">
+                    {x.name +
+                      (x.versionManifest.id !== x.name
+                        ? `: ${x.versionManifest.id}`
+                        : '')}
+                  </Heading>
+                  {x.uuid}
+                </Box>
+              </Flex>
+            </ListItem>
           ))}
       </List>
     </>
