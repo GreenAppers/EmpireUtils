@@ -1,90 +1,35 @@
+import { spawn } from 'child_process'
 import { app } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import pSettle from 'p-settle'
 import { v4 as uuidv4 } from 'uuid'
 
-import {
-  GameInstall,
-  MojangRule,
-  MojangStringsTemplate,
-  mojangVersionDetails,
-} from '../constants'
+import { GameInstall, mojangVersionDetails } from '../constants'
 import {
   checkFileExists,
   download,
   downloadIfMissing,
   ensureDirectory,
 } from './downloader'
+import {
+  allowRules,
+  applyArgumentsTemplate,
+  filterBlankArguments,
+  getOsArch,
+  getOsName,
+} from './template'
 
 const launchRunning: Record<string, GameInstall> = {}
 
-const getLibrariesPath = () => path.join(app.getPath('userData'), 'libraries')
+export const getLibrariesPath = () =>
+  path.join(app.getPath('userData'), 'libraries')
 
-const getOsArch = () => {
-  switch (process.arch) {
-    case 'ia32':
-      return 'x86'
-    default:
-      return process.arch
-  }
-}
-
-const getOsName = () => {
-  switch (process.platform) {
-    case 'win32':
-      return 'windows'
-    case 'darwin':
-      return 'osx'
-    case 'linux':
-      return 'linux'
-    default:
-      return process.platform
-  }
-}
-
-const allowRules = (
-  context: { osName: string; osArch: string },
-  rules?: MojangRule[]
-) => {
-  let include = true
-  for (const rule of rules ?? []) {
-    if (rule.action === 'allow') {
-      if (!rule.os?.name || rule.os.name === context.osName) continue
-      if (!rule.os?.arch || rule.os?.arch === context.osArch) continue
-      include = false
-      break
-    }
-  }
-  return include
-}
-
-const replaceTemplateVariables = (
-  input: string,
-  values: Record<string, string>
-) => input.replace(/\${(\w+)}/g, (match, key) => values[key] ?? match)
-
-const applyArgumentsTemplate = (
-  context: { osName: string; osArch: string },
-  template: MojangStringsTemplate,
-  values: Record<string, string>,
-  output: string[]
-) => {
-  for (const argument of template) {
-    if (typeof argument === 'string') {
-      output.push(replaceTemplateVariables(argument, values))
-      continue
-    }
-    if (!allowRules(context, argument.rules)) continue
-    if (typeof argument.value === 'string')
-      output.push(replaceTemplateVariables(argument.value, values))
-    else
-      output.push(
-        ...argument.value.map((x) => replaceTemplateVariables(x, values))
-      )
-  }
-  return output
-}
+export const getClientJarPath = (version: string) =>
+  path.join(
+    getLibrariesPath(),
+    `com/mojang/minecraft/${version}/minecraft-${version}-client.jar`
+  )
 
 export async function setupInstall(install: GameInstall) {
   if (!install.name) {
@@ -133,6 +78,13 @@ export async function updateInstall(install: GameInstall) {
       )
     )
   }
+  downloadLibraries.push(() =>
+    downloadIfMissing(
+      versionDetails.downloads.client.url,
+      getClientJarPath(versionDetails.id),
+      versionDetails.downloads.client.sha1
+    )
+  )
   await pSettle(downloadLibraries, { concurrency: 8 })
 
   return versionDetails
@@ -161,14 +113,14 @@ export async function launchInstall(
       version_name: install.versionManifest.id,
       game_directory: install.path,
       assets_root: '',
-      assets_index_name: '',
+      assets_index_name: '1.21',
       auth_uuid: '',
-      auth_access_token: '',
+      auth_access_token: '0',
       clientid: '',
       auth_xuid: '',
       user_type: '',
       version_type: '',
-      natives_directory: '',
+      natives_directory: path.join(install.path, 'natives'),
       launcher_name: 'Empire Utils',
       launcher_version: '1.0.0',
       classpath: '',
@@ -179,14 +131,9 @@ export async function launchInstall(
       if (!allowRules({ osName, osArch }, library.rules)) continue
       appendClasspath(path.join(librariesPath, library.downloads.artifact.path))
     }
+    appendClasspath(getClientJarPath(versionDetails.id))
 
-    const command = ['java']
-    applyArgumentsTemplate(
-      { osName, osArch },
-      versionDetails.arguments.game,
-      template,
-      command
-    )
+    let command = ['java']
     applyArgumentsTemplate(
       { osName, osArch },
       versionDetails.arguments.jvm,
@@ -194,10 +141,31 @@ export async function launchInstall(
       command
     )
     command.push(versionDetails.mainClass)
-
+    applyArgumentsTemplate(
+      { osName, osArch },
+      versionDetails.arguments.game,
+      template,
+      command
+    )
+    command = filterBlankArguments(command)
     callback('Launching install: ' + command.join(' '))
 
-    callback('Complete')
+    const child = spawn(command[0], command.slice(1), {
+      cwd: install.path,
+    })
+    child.stdout.pipe(process.stdout)
+    child.stderr.pipe(process.stderr)
+    child.on('error', (err: Error) => {
+      throw new Error(`launch:${launchId} failed to start! ${err}`)
+    })
+    child.on('exit', (code: number) => {
+      if (code === 0) {
+        console.info(`launch:${launchId} exited`)
+      } else {
+        console.info(`launch:${launchId} exited with code ${code}`)
+      }
+    })
+    callback(`Complete: ${child.pid}`)
   } catch (error) {
     console.log('launchInstall error', error)
     throw error

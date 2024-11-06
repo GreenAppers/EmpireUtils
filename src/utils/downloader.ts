@@ -1,11 +1,7 @@
 import axios from 'axios'
-import { app } from 'electron'
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
-import { v4 as uuidv4 } from 'uuid'
-
-import { GameInstall } from '../constants'
 
 export async function checkFileExists(path: string) {
   try {
@@ -81,29 +77,4 @@ export async function downloadIfMissing(
   if ((await sha1File(dest)) === sha1) return
   await ensureDirectory(path.dirname(dest))
   await download(url, dest)
-}
-
-export async function setupInstall(install: GameInstall) {
-  if (!install.name) {
-    throw new Error('Install name is required')
-  }
-  if (!install.versionManifest) {
-    throw new Error('Install version manifest is required')
-  }
-
-  if (!install.uuid) {
-    install.uuid = uuidv4()
-  }
-  if (!install.path) {
-    install.path = path.join(app.getPath('userData'), 'installs', install.uuid)
-  }
-  await ensureDirectory(install.path)
-
-  const versionJson = path.join(
-    install.path,
-    `${install.versionManifest.id}.json`
-  )
-  if (!(await checkFileExists(versionJson))) {
-    await download(install.versionManifest.url, versionJson)
-  }
 }
