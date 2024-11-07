@@ -72,9 +72,14 @@ export async function download(url: string, dest: string) {
 export async function downloadIfMissing(
   url: string,
   dest: string,
-  sha1: string
+  sha1?: string
 ) {
-  if ((await sha1File(dest)) === sha1) return
+  // console.log('downloadIfMissing', url, dest, sha1)
+  if (sha1) {
+    if ((await sha1File(dest)) === sha1) return
+  } else {
+    if (await checkFileExists(dest)) return
+  }
   await ensureDirectory(path.dirname(dest))
   await download(url, dest)
 }

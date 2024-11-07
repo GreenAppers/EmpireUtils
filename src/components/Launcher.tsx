@@ -18,11 +18,11 @@ import {
   ModalHeader,
   ModalOverlay,
   Select,
+  Spacer,
   Spinner,
   Tooltip,
 } from '@chakra-ui/react'
-import { SettingsIcon } from '@chakra-ui/icons'
-import { AddIcon } from '@chakra-ui/icons'
+import { AddIcon, EditIcon } from '@chakra-ui/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import axios from 'axios'
 import React, { useEffect, useState } from 'react'
@@ -30,9 +30,12 @@ import { v4 as uuidv4 } from 'uuid'
 
 import {
   GameInstall,
+  getGameInstalModLoaderName,
+  ModLoaderName,
   MojangVersionManifests,
   mojangVersionManifests,
   QUERY_KEYS,
+  setGameInstallModLoaderName,
   STORE_KEYS,
 } from '../constants'
 
@@ -57,6 +60,7 @@ export const useCreateGameInstallMutation = (options?: {
   return useMutation<GameInstall, unknown, Partial<GameInstall>>({
     mutationFn: (newGameInstall) =>
       window.api.createGameInstall({
+        ...newGameInstall,
         name: assertValue(
           newGameInstall.name,
           'useCreateGameInstallMutation name'
@@ -110,14 +114,17 @@ export const useMojangVersionManifestsQuery = () =>
   })
 
 export function NewGameInstall(props: {
+  existingInstall?: GameInstall
   isOpen: boolean
   onClose: () => void
 }) {
-  const [newInstall, setNewInstall] = useState<Partial<GameInstall>>({
-    name: '',
-    path: '',
-    versionManifest: undefined,
-  })
+  const [newInstall, setNewInstall] = useState<Partial<GameInstall>>(
+    props.existingInstall ?? {
+      name: '',
+      path: '',
+      versionManifest: undefined,
+    }
+  )
 
   const updateNewInstallVersionManifest = (version: string) => {
     const newVersionManifest = versionManifests.data?.versions?.find(
@@ -153,7 +160,9 @@ export function NewGameInstall(props: {
     <Modal isOpen={props.isOpen} onClose={props.onClose}>
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>New Install</ModalHeader>
+        <ModalHeader>
+          {props.existingInstall ? 'Update' : 'New'} Install
+        </ModalHeader>
         <ModalCloseButton />
         {versionManifests.isError ? (
           <ModalBody>
@@ -195,6 +204,23 @@ export function NewGameInstall(props: {
                 }
               />
             </FormControl>
+            <FormControl>
+              <FormLabel>Mod loader</FormLabel>
+              <Select
+                value={getGameInstalModLoaderName(newInstall)}
+                onChange={(event) =>
+                  setNewInstall((prev) =>
+                    setGameInstallModLoaderName(prev, event.target.value)
+                  )
+                }
+              >
+                {Object.keys(ModLoaderName).map((x) => (
+                  <option key={x} value={x}>
+                    {x}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
           </ModalBody>
         )}
         <ModalFooter>
@@ -204,7 +230,7 @@ export function NewGameInstall(props: {
                 mr={3}
                 onClick={() => createGameInstallMutation.mutate(newInstall)}
               >
-                Create
+                {props.existingInstall ? 'Update' : 'Create'}
               </Button>
             )}
         </ModalFooter>
@@ -251,6 +277,9 @@ export function LaunchGameInstall(props: {
 export function Launcher() {
   const gameInstalls = useGameInstallsQuery()
   const [showNewInstall, setShowNewInstall] = useState(false)
+  const [updateExistingInstall, setUpdateExistingInstall] = useState<
+    GameInstall | undefined
+  >(undefined)
   const [launched, setLaunched] = useState<
     Record<string, { install: GameInstall; show: boolean }>
   >({})
@@ -279,6 +308,14 @@ export function Launcher() {
         />
       )}
 
+      {updateExistingInstall && (
+        <NewGameInstall
+          existingInstall={updateExistingInstall}
+          isOpen={!!updateExistingInstall}
+          onClose={() => setUpdateExistingInstall(undefined)}
+        />
+      )}
+
       {Object.entries(launched).map(
         ([id, { install, show }]) =>
           show && (
@@ -299,9 +336,9 @@ export function Launcher() {
 
       <List marginTop="1rem">
         {gameInstalls.isSuccess &&
-          gameInstalls.data.map((x, i) => (
-            <ListItem key={x.name} height="5rem">
-              <Flex>
+          gameInstalls.data.map((install, i) => (
+            <ListItem key={install.name} height="5rem">
+              <Flex alignItems="center">
                 <IconButton
                   aria-label="gameInstall"
                   marginRight="1rem"
@@ -318,18 +355,28 @@ export function Launcher() {
                   onClick={() =>
                     setLaunched((prev) => ({
                       ...prev,
-                      [uuidv4()]: { install: x, show: true },
+                      [uuidv4()]: { install: install, show: true },
                     }))
                   }
                 />
                 <Box>
                   <Heading as="h5" size="sm">
-                    {x.name +
-                      (x.versionManifest.id !== x.name
-                        ? `: ${x.versionManifest.id}`
+                    {install.name +
+                      (install.versionManifest.id !== install.name
+                        ? `: ${install.versionManifest.id}`
                         : '')}
                   </Heading>
-                  {x.uuid}
+                  {install.uuid}
+                </Box>
+                <Spacer />
+                <Box>
+                  <Tooltip label={`Edit ${install.name}`}>
+                    <IconButton
+                      aria-label={`Edit ${install.name}`}
+                      icon={<EditIcon />}
+                      onClick={() => setUpdateExistingInstall(install)}
+                    />
+                  </Tooltip>
                 </Box>
               </Flex>
             </ListItem>

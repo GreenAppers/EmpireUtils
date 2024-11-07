@@ -5,7 +5,13 @@ import path from 'path'
 import pSettle from 'p-settle'
 import { v4 as uuidv4 } from 'uuid'
 
-import { GameInstall, mojangVersionDetails } from '../constants'
+import {
+  fabricVersionDetails,
+  GameInstall,
+  mojangVersionDetails,
+  parseLibraryName,
+  updateVersionDetailsLibrary,
+} from '../constants'
 import {
   checkFileExists,
   download,
@@ -19,6 +25,7 @@ import {
   getOsArch,
   getOsName,
 } from './template'
+import axios from 'axios'
 
 const launchRunning: Record<string, GameInstall> = {}
 
@@ -30,6 +37,25 @@ export const getClientJarPath = (version: string) =>
     getLibrariesPath(),
     `com/mojang/minecraft/${version}/minecraft-${version}-client.jar`
   )
+
+export const getMinecraftVersionJsonPath = (install: GameInstall) =>
+  path.join(install.path, `${install.versionManifest.id}.json`)
+
+export const getFabricVersionJsonPath = (install: GameInstall) =>
+  path.join(install.path, `fabric-${install.fabricLoaderVersion}.json`)
+
+export async function setupFabricInstall(install: GameInstall) {
+  if (!(await checkFileExists(getFabricVersionJsonPath(install)))) {
+    const loaders = await axios.get(
+      `https://meta.fabricmc.net/v2/versions/loader/${install.versionManifest.id}/`
+    )
+    install.fabricLoaderVersion = loaders.data[0].loader.version
+    await download(
+      `https://meta.fabricmc.net/v2/versions/loader/${install.versionManifest.id}/${install.fabricLoaderVersion}/profile/json`,
+      getFabricVersionJsonPath(install)
+    )
+  }
+}
 
 export async function setupInstall(install: GameInstall) {
   if (!install.name) {
@@ -47,22 +73,18 @@ export async function setupInstall(install: GameInstall) {
   }
   await ensureDirectory(install.path)
 
-  const versionJson = path.join(
-    install.path,
-    `${install.versionManifest.id}.json`
-  )
-  if (!(await checkFileExists(versionJson))) {
-    await download(install.versionManifest.url, versionJson)
+  const versionDetailsFilename = getMinecraftVersionJsonPath(install)
+  if (!(await checkFileExists(versionDetailsFilename))) {
+    await download(install.versionManifest.url, versionDetailsFilename)
   }
+
+  if (install.fabricLoaderVersion) await setupFabricInstall(install)
 }
 
 export async function updateInstall(install: GameInstall) {
   await setupInstall(install)
 
-  const versionDetailsFilename = path.join(
-    install.path,
-    `${install.versionManifest.id}.json`
-  )
+  const versionDetailsFilename = getMinecraftVersionJsonPath(install)
   const versionDetails = mojangVersionDetails.parse(
     JSON.parse(await fs.promises.readFile(versionDetailsFilename, 'utf-8'))
   )
@@ -85,8 +107,44 @@ export async function updateInstall(install: GameInstall) {
       versionDetails.downloads.client.sha1
     )
   )
-  await pSettle(downloadLibraries, { concurrency: 8 })
 
+  if (install.fabricLoaderVersion) {
+    const fabricDetailsFilename = getFabricVersionJsonPath(install)
+    const fabricDetails = fabricVersionDetails.parse(
+      JSON.parse(await fs.promises.readFile(fabricDetailsFilename, 'utf-8'))
+    )
+    for (const library of fabricDetails.libraries) {
+      const { jarOrg, jarName, jarVersion } = parseLibraryName(library.name)
+      const jarPath = path.join(
+        `${jarOrg.replaceAll('.', '/')}/${jarName}/${jarVersion}`,
+        `${jarName}-${jarVersion}.jar`
+      )
+      const url = library.url + jarPath
+      updateVersionDetailsLibrary(versionDetails, {
+        name: library.name,
+        downloads: {
+          artifact: {
+            path: jarPath,
+            sha1: '',
+            size: 0,
+            url,
+          },
+        },
+      })
+      downloadLibraries.push(() =>
+        downloadIfMissing(url, path.join(librariesPath, jarPath))
+      )
+    }
+    for (const argument of fabricDetails.arguments.jvm) {
+      versionDetails.arguments.jvm.push(argument)
+    }
+    for (const argument of fabricDetails.arguments.game) {
+      versionDetails.arguments.game.push(argument)
+    }
+    versionDetails.mainClass = fabricDetails.mainClass
+  }
+
+  await pSettle(downloadLibraries, { concurrency: 8 })
   return versionDetails
 }
 
@@ -105,8 +163,8 @@ export async function launchInstall(
     callback('Updating install')
     const versionDetails = await updateInstall(install)
 
-    const osName = getOsName()
     const osArch = getOsArch()
+    const osName = getOsName()
     const librariesPath = getLibrariesPath()
     const template = {
       auth_player_name: '',
