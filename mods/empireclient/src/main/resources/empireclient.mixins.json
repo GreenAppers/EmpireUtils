@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "com.greenappers.empireclient.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"mixins": [],
+	"client": [
+		"MixinLightmapTextureManager"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

@@ -135,6 +135,7 @@ export async function updateInstall(install: GameInstall) {
         downloadIfMissing(url, path.join(librariesPath, jarPath))
       )
     }
+    // https://github.com/FabricMC/fabric/releases/download/0.107.0%2B1.21.3/fabric-api-0.107.0+1.21.3.jar
     for (const argument of fabricDetails.arguments.jvm) {
       versionDetails.arguments.jvm.push(argument)
     }
