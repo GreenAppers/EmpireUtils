@@ -119,6 +119,7 @@ export const gameInstall = z.object({
   uuid: z.string(),
   versionManifest: mojangVersionManifest,
   fabricLoaderVersion: z.optional(z.string()),
+  mods: z.optional(z.array(z.string())),
 })
 
 export type MojangLibrary = z.infer<typeof mojangLibrary>
@@ -161,6 +162,11 @@ export const CHANNELS = {
 
 export const LAUNCH_CHANNEL = (uuid: string) => `launch-game-install-${uuid}`
 
+export const findVersionManifest = (
+  versionManifests: MojangVersionManifests | undefined,
+  version: string
+) => versionManifests?.versions?.find((x) => x.id === version)
+
 export const getGameInstalModLoaderName = (
   gameInstall: Partial<GameInstall>
 ): ModLoaderName => {
@@ -179,6 +185,19 @@ export const setGameInstallModLoaderName = (
       return { ...gameInstall, fabricLoaderVersion: undefined }
   }
 }
+
+export const toggleGameInstallModeUrl = (
+  gameInstall: Partial<GameInstall>,
+  url: string,
+  includeUrl?: boolean
+): Partial<GameInstall> => ({
+  ...gameInstall,
+  mods: (
+    includeUrl !== undefined ? includeUrl : gameInstall.mods?.includes(url)
+  )
+    ? [...(gameInstall.mods ?? []), url]
+    : (gameInstall.mods ?? []).filter((x) => x !== url),
+})
 
 export const parseLibraryName = (libraryName: string) => {
   const [jarOrg, jarName, jarVersion] = libraryName.split(':')

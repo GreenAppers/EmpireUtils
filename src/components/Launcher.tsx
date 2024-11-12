@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  Checkbox,
   Flex,
   FormControl,
   FormLabel,
@@ -29,6 +30,7 @@ import React, { useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 
 import {
+  findVersionManifest,
   GameInstall,
   getGameInstalModLoaderName,
   ModLoaderName,
@@ -37,7 +39,11 @@ import {
   QUERY_KEYS,
   setGameInstallModLoaderName,
   STORE_KEYS,
+  toggleGameInstallModeUrl,
 } from '../constants'
+import { mods } from '../utils/mods'
+
+const defaultVersion = '1.20.6'
 
 function assertValue<X>(x: X | undefined | null, name?: string): X {
   if (!x) throw new Error(`missing ${name}`)
@@ -127,8 +133,9 @@ export function NewGameInstall(props: {
   )
 
   const updateNewInstallVersionManifest = (version: string) => {
-    const newVersionManifest = versionManifests.data?.versions?.find(
-      (x) => x.id === version
+    const newVersionManifest = findVersionManifest(
+      versionManifests.data,
+      version
     )
     if (!newVersionManifest) return
     setNewInstall((prev) => ({
@@ -148,7 +155,15 @@ export function NewGameInstall(props: {
 
   useEffect(() => {
     if (!newInstall.versionManifest?.id && versionManifests.isSuccess) {
-      updateNewInstallVersionManifest(versionManifests.data.latest.release)
+      const defaultVersionManifest = findVersionManifest(
+        versionManifests.data,
+        defaultVersion
+      )
+      updateNewInstallVersionManifest(
+        defaultVersionManifest
+          ? defaultVersion
+          : versionManifests.data.latest.release
+      )
     }
   }, [
     newInstall.versionManifest?.id,
@@ -221,6 +236,30 @@ export function NewGameInstall(props: {
                 ))}
               </Select>
             </FormControl>
+            {newInstall.fabricLoaderVersion && (
+              <List marginTop="1rem">
+                {Object.entries(
+                  mods[`${newInstall?.versionManifest?.id}-fabric`] || {}
+                ).map(([name, url]) => (
+                  <ListItem key={name}>
+                    <Checkbox
+                      isChecked={newInstall?.mods?.includes(url)}
+                      onChange={(e) =>
+                        setNewInstall((prev) =>
+                          toggleGameInstallModeUrl(
+                            prev,
+                            url,
+                            !!e.target.checked
+                          )
+                        )
+                      }
+                    >
+                      {name}
+                    </Checkbox>
+                  </ListItem>
+                ))}
+              </List>
+            )}
           </ModalBody>
         )}
         <ModalFooter>

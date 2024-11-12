@@ -16,7 +16,7 @@ import { Launcher } from './Launcher'
 import { PieRayHelper } from './PieRayHelper'
 
 function App() {
-  const [selectedTab, setSelectedTab] = React.useState(1)
+  const [selectedTab, setSelectedTab] = React.useState(2)
   return (
     <Tabs
       variant="soft-rounded"

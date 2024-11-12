@@ -145,6 +145,17 @@ export async function updateInstall(install: GameInstall) {
     versionDetails.mainClass = fabricDetails.mainClass
   }
 
+  const modsPath = path.join(install.path, 'mods')
+  for (const mod of install.mods ?? []) {
+    const url = new URL(mod)
+    downloadLibraries.push(() =>
+      downloadIfMissing(
+        mod,
+        path.join(modsPath, path.basename(url.pathname))
+      )
+    )
+  }
+
   await pSettle(downloadLibraries, { concurrency: 8 })
   return versionDetails
 }
