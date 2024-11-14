@@ -13,7 +13,8 @@ import log from 'electron-log/main'
 
 import './index.css'
 import { CHANNELS, GameInstall, LAUNCH_CHANNEL, STORE_KEYS } from './constants'
-import { newStore } from './store'
+import { AuthProvider } from './msal/AuthProvider'
+import { newStore, removeGameInstall, updateGameInstall } from './store'
 import {
   findGameLogFiles,
   newGameLogContext,
@@ -29,6 +30,7 @@ declare const MAIN_WINDOW_WEBPACK_ENTRY: string
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string
 
 const clipboardPollInterval = 500
+const authProvider = new AuthProvider()
 const gameLogContext = newGameLogContext()
 const store = newStore()
 
@@ -98,21 +100,14 @@ app.on('ready', () => {
     CHANNELS.createGameInstall,
     async (_event, gameInstall: GameInstall) => {
       await setupInstall(gameInstall)
-      const gameInstalls = store
-        .get<string, GameInstall[]>(STORE_KEYS.gameInstalls)
-        .filter((x) => x.uuid !== gameInstall.uuid)
-      gameInstalls.push({ ...gameInstall })
-      store.set(STORE_KEYS.gameInstalls, gameInstalls)
+      updateGameInstall(store, gameInstall)
       return gameInstall
     }
   )
   ipcMain.handle(
     CHANNELS.deleteGameInstall,
     async (_event, gameInstall: GameInstall) => {
-      const gameInstalls = store
-        .get<string, GameInstall[]>(STORE_KEYS.gameInstalls)
-        .filter((x) => x.uuid !== gameInstall.uuid)
-      store.set(STORE_KEYS.gameInstalls, gameInstalls)
+      removeGameInstall(store, gameInstall)
       return true
     }
   )
@@ -120,7 +115,7 @@ app.on('ready', () => {
     CHANNELS.launchGameInstall,
     async (_event, launchId: string, gameInstall: GameInstall) => {
       const channel = LAUNCH_CHANNEL(launchId)
-      launchInstall(launchId, gameInstall, (update) => {
+      launchInstall(launchId, gameInstall, authProvider, store, (update) => {
         mainWindow?.webContents.send(channel, update)
       }).catch((error) => log.error('launchGameInstall error', error))
       return true

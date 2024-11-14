@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  minecraftLoginResponse,
+  minecraftProfile,
+  xstsAuthorizeResponse,
+} from './utils/auth'
 
 export enum ModLoaderName {
   Fabric = 'Fabric',
@@ -113,6 +118,15 @@ export const fabricVersionDetails = z.object({
   ),
 })
 
+export const gameAccount = z.object({
+  active: z.boolean(),
+  profile: minecraftProfile,
+  userToken: xstsAuthorizeResponse,
+  xboxliveToken: xstsAuthorizeResponse,
+  minecraftToken: xstsAuthorizeResponse,
+  yggdrasilToken: minecraftLoginResponse,
+})
+
 export const gameInstall = z.object({
   name: z.string(),
   path: z.string(),
@@ -129,6 +143,7 @@ export type MojangVersionManifest = z.infer<typeof mojangVersionManifest>
 export type MojangVersionManifests = z.infer<typeof mojangVersionManifests>
 export type MojangStringsTemplate = z.infer<typeof mojangStringsTemplate>
 
+export type GameAccount = z.infer<typeof gameAccount>
 export type GameInstall = z.infer<typeof gameInstall>
 
 export type StoreSchema = {
@@ -154,6 +169,7 @@ export const CHANNELS = {
   electronStoreGet: 'electron-store-get',
   electronStoreSet: 'electron-store-set',
   launchGameInstall: 'launch-game-install',
+  loginToMicrosoftAccount: 'login-to-microsoft-account',
   openBrowserWindow: 'open-browser-window',
   openFileDialog: 'open-file-dialog',
   getLogfilePath: 'get-logfile-path',

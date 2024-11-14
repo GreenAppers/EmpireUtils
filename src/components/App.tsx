@@ -1,4 +1,5 @@
 import {
+  Button,
   Flex,
   IconButton,
   Image,
@@ -9,6 +10,9 @@ import {
   TabPanels,
   Box,
   useColorModeValue,
+  Avatar,
+  Spacer,
+  Tooltip,
 } from '@chakra-ui/react'
 import React from 'react'
 import { Analytics } from './Analytics'
@@ -41,6 +45,12 @@ function App() {
             <Tab>Strongholds</Tab>
             <Tab>Waypoints</Tab>
           </TabList>
+          <Spacer />
+          <Button onClick={() => window.api.loginToMicrosoftAccount()}>
+            <Tooltip label="Sign in">
+              <Avatar />
+            </Tooltip>
+          </Button>
         </Flex>
       </Box>
       <TabPanels>

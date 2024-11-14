@@ -36,6 +36,8 @@ export const api = {
     ipcRenderer.on(channel, listener)
     return { channel, listener }
   },
+  loginToMicrosoftAccount: () =>
+    ipcRenderer.send(CHANNELS.loginToMicrosoftAccount),
   openBrowserWindow: (url: string) =>
     ipcRenderer.send(CHANNELS.openBrowserWindow, url),
   openFileDialog: (path: string) =>

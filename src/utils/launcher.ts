@@ -1,3 +1,5 @@
+import axios from 'axios'
+import Store from 'electron-store'
 import { spawn } from 'child_process'
 import { app } from 'electron'
 import fs from 'fs'
@@ -10,8 +12,11 @@ import {
   GameInstall,
   mojangVersionDetails,
   parseLibraryName,
+  StoreSchema,
   updateVersionDetailsLibrary,
 } from '../constants'
+import { AuthProvider } from '../msal/AuthProvider'
+import { loginToMinecraft } from './auth'
 import {
   checkFileExists,
   download,
@@ -25,7 +30,6 @@ import {
   getOsArch,
   getOsName,
 } from './template'
-import axios from 'axios'
 
 const launchRunning: Record<string, GameInstall> = {}
 
@@ -149,10 +153,7 @@ export async function updateInstall(install: GameInstall) {
   for (const mod of install.mods ?? []) {
     const url = new URL(mod)
     downloadLibraries.push(() =>
-      downloadIfMissing(
-        mod,
-        path.join(modsPath, path.basename(url.pathname))
-      )
+      downloadIfMissing(mod, path.join(modsPath, path.basename(url.pathname)))
     )
   }
 
@@ -163,6 +164,8 @@ export async function updateInstall(install: GameInstall) {
 export async function launchInstall(
   launchId: string,
   install: GameInstall,
+  authProvider: AuthProvider,
+  store: Store<StoreSchema>,
   callback: (updated: string) => void
 ) {
   try {
@@ -175,6 +178,14 @@ export async function launchInstall(
     callback('Updating install')
     const versionDetails = await updateInstall(install)
 
+    callback('Authenticating')
+    const microsoftAuth = await authProvider.login()
+    const gameAccount = await loginToMinecraft(
+      microsoftAuth?.accessToken,
+      store
+    )
+    const accessToken = gameAccount.yggdrasilToken.access_token
+
     const osArch = getOsArch()
     const osName = getOsName()
     const librariesPath = getLibrariesPath()
@@ -185,7 +196,7 @@ export async function launchInstall(
       assets_root: '',
       assets_index_name: '1.21',
       auth_uuid: '',
-      auth_access_token: '0',
+      auth_access_token: accessToken || '0',
       clientid: '',
       auth_xuid: '',
       user_type: '',

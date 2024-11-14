@@ -1,5 +1,10 @@
 import Store, { Schema } from 'electron-store'
-import type { StoreSchema } from './constants'
+import {
+  GameAccount,
+  GameInstall,
+  STORE_KEYS,
+  type StoreSchema,
+} from './constants'
 import { getDefaultGameLogDirectories } from './utils/gamelog'
 
 export const schema: Schema<StoreSchema> = {
@@ -35,3 +40,36 @@ export const schema: Schema<StoreSchema> = {
 }
 
 export const newStore = () => new Store<StoreSchema>({ schema })
+
+export const updateGameAccount = (
+  store: Store<StoreSchema>,
+  gameAccount: GameAccount
+) =>
+  store.set(STORE_KEYS.gameAccounts, [
+    ...store
+      .get<string, GameAccount[]>(STORE_KEYS.gameAccounts)
+      .filter((x) => x.profile.id !== gameAccount.profile.id),
+    ...[{ ...gameAccount }],
+  ])
+
+export const updateGameInstall = (
+  store: Store<StoreSchema>,
+  gameInstall: GameInstall
+) =>
+  store.set(STORE_KEYS.gameInstalls, [
+    ...store
+      .get<string, GameInstall[]>(STORE_KEYS.gameInstalls)
+      .filter((x) => x.uuid !== gameInstall.uuid),
+    ...[{ ...gameInstall }],
+  ])
+
+export const removeGameInstall = (
+  store: Store<StoreSchema>,
+  gameInstall: GameInstall
+) =>
+  store.set(
+    STORE_KEYS.gameInstalls,
+    store
+      .get<string, GameInstall[]>(STORE_KEYS.gameInstalls)
+      .filter((x) => x.uuid !== gameInstall.uuid)
+  )
