@@ -146,20 +146,9 @@ app.on('ready', () => {
         startDate,
         endDate
       )
-      readGameLogs(
-        gameLogContext,
-        logFiles,
-        (context, content, timestamp, source) => {
-          mainWindow?.webContents.send(
-            CHANNELS.readGameLogs,
-            context.userName,
-            context.serverName,
-            content,
-            timestamp,
-            source
-          )
-        }
-      ).catch((error) => log.error('readGameLogChannel error', error))
+      readGameLogs(gameLogContext, logFiles, (lines) => {
+        mainWindow?.webContents.send(CHANNELS.readGameLogs, lines)
+      }).catch((error) => log.error('readGameLogChannel error', error))
       return logFiles
     }
   )

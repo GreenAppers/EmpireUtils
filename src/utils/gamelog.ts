@@ -5,7 +5,7 @@ import split2 from 'split2'
 import stream from 'stream'
 import { Tail } from 'tail'
 import zlib from 'zlib'
-import type { GameLog } from '../types'
+import type { GameLog, GameLogLine } from '../types'
 
 export interface GameLogContext {
   serverName: string
@@ -106,16 +106,20 @@ export async function findGameLogFiles(
 export async function readGameLogs(
   context: GameLogContext,
   gamelogs: GameLog[],
-  callback: (
-    context: GameLogContext,
-    content: string,
-    timestamp: Date,
-    path: string
-  ) => void
+  callback: (lines: GameLogLine[]) => void
 ) {
   const handleGameLogLine = (line: string, path: string) => {
     const parsed = parseGameLogLine(context, line, path)
-    if (parsed) callback(context, parsed.content, parsed.timestamp, path)
+    if (!parsed) return
+    callback([
+      {
+        userName: parsed.context.userName,
+        serverName: parsed.context.serverName,
+        content: parsed.content,
+        timestamp: parsed.timestamp,
+        source: path,
+      },
+    ])
   }
 
   resetGameLogContext(context, gamelogs)

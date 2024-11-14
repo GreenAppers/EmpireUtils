@@ -17,6 +17,14 @@ interface GameLog {
   mtimeMs: number
 }
 
+interface GameLogLine {
+  userName: string
+  serverName: string
+  content: string
+  timestamp: Date
+  source: string
+}
+
 interface PieRaySample {
   chunk: Chunk
   direction?: ChunkDirection

@@ -1,81 +1,19 @@
 import axios from 'axios'
 import Store from 'electron-store'
-import { z } from 'zod'
-import type { GameAccount, StoreSchema } from '../constants'
+import {
+  GameAccount,
+  minecraftLoginResponse,
+  minecraftProfile,
+  StoreSchema,
+  xboxLiveProfile,
+  xstsAuthorizeResponse,
+} from '../constants'
 import { updateGameAccount } from '../store'
 
 // References:
 // - https://mojang-api-docs.gapple.pw/
 // - https://minecraft-launcher-lib.readthedocs.io/en/stable/tutorial/microsoft_login.html
 // - https://learn.microsoft.com/en-us/gaming/gdk/_content/gc/commerce/service-to-service/xstore-requesting-a-userstoreid-from-services
-
-export const minecraftLoginResponse = z.object({
-  username: z.string(),
-  roles: z.array(z.string()),
-  access_token: z.string(),
-  token_type: z.string(),
-  expires_in: z.number(),
-})
-
-export const minecraftProfileState = z.enum(['ACTIVE', 'INACTIVE'])
-export const minecraftSkinVariant = z.enum(['SLIM', 'CLASSIC'])
-
-export const minecraftSkin = z.object({
-  id: z.string(),
-  state: minecraftProfileState,
-  url: z.string(),
-  variant: minecraftSkinVariant,
-})
-
-export const minecraftCape = z.object({
-  id: z.string(),
-  state: minecraftProfileState,
-  url: z.string(),
-  alias: z.string(),
-})
-
-export const minecraftProfile = z.object({
-  id: z.string(),
-  name: z.string(),
-  skins: z.array(minecraftSkin),
-  capes: z.array(minecraftCape),
-})
-
-export const xboxLiveProfile = z.object({
-  profileUsers: z.array(
-    z.object({
-      id: z.string(),
-      hostId: z.optional(z.string()).nullable(),
-      settings: z.array(
-        z.object({
-          id: z.string(),
-          value: z.string(),
-        })
-      ),
-      isSponsoredUser: z.boolean(),
-    })
-  ),
-})
-
-export const xstsAuthorizeResponse = z.object({
-  IssueInstant: z.string(),
-  NotAfter: z.string(),
-  Token: z.string(),
-  DisplayClaims: z.object({
-    xui: z.array(
-      z.object({
-        gtg: z.optional(z.string()),
-        uhs: z.string(),
-        xid: z.optional(z.string()),
-      })
-    ),
-  }),
-})
-
-export type MinecraftLauncherLoginResponse = z.infer<
-  typeof minecraftLoginResponse
->
-export type XSTSAuthorizeResponse = z.infer<typeof xstsAuthorizeResponse>
 
 export const formatXSTSToken = (uhs: string, token: string) =>
   `XBL3.0 x=${uhs};${token}`

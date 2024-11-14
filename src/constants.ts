@@ -1,14 +1,41 @@
 import { z } from 'zod'
-import {
-  minecraftLoginResponse,
-  minecraftProfile,
-  xstsAuthorizeResponse,
-} from './utils/auth'
 
 export enum ModLoaderName {
   Fabric = 'Fabric',
   None = 'None',
 }
+
+export const minecraftLoginResponse = z.object({
+  username: z.string(),
+  roles: z.array(z.string()),
+  access_token: z.string(),
+  token_type: z.string(),
+  expires_in: z.number(),
+})
+
+export const minecraftProfileState = z.enum(['ACTIVE', 'INACTIVE'])
+export const minecraftSkinVariant = z.enum(['SLIM', 'CLASSIC'])
+
+export const minecraftSkin = z.object({
+  id: z.string(),
+  state: minecraftProfileState,
+  url: z.string(),
+  variant: minecraftSkinVariant,
+})
+
+export const minecraftCape = z.object({
+  id: z.string(),
+  state: minecraftProfileState,
+  url: z.string(),
+  alias: z.string(),
+})
+
+export const minecraftProfile = z.object({
+  id: z.string(),
+  name: z.string(),
+  skins: z.array(minecraftSkin),
+  capes: z.array(minecraftCape),
+})
 
 export const mojangVersionManifest = z.object({
   id: z.string(),
@@ -118,6 +145,37 @@ export const fabricVersionDetails = z.object({
   ),
 })
 
+export const xboxLiveProfile = z.object({
+  profileUsers: z.array(
+    z.object({
+      id: z.string(),
+      hostId: z.optional(z.string()).nullable(),
+      settings: z.array(
+        z.object({
+          id: z.string(),
+          value: z.string(),
+        })
+      ),
+      isSponsoredUser: z.boolean(),
+    })
+  ),
+})
+
+export const xstsAuthorizeResponse = z.object({
+  IssueInstant: z.string(),
+  NotAfter: z.string(),
+  Token: z.string(),
+  DisplayClaims: z.object({
+    xui: z.array(
+      z.object({
+        gtg: z.optional(z.string()),
+        uhs: z.string(),
+        xid: z.optional(z.string()),
+      })
+    ),
+  }),
+})
+
 export const gameAccount = z.object({
   active: z.boolean(),
   profile: minecraftProfile,
@@ -136,12 +194,16 @@ export const gameInstall = z.object({
   mods: z.optional(z.array(z.string())),
 })
 
+export type MinecraftLoginResponse = z.infer<
+  typeof minecraftLoginResponse
+>
 export type MojangLibrary = z.infer<typeof mojangLibrary>
 export type MojangRule = z.infer<typeof mojangRule>
 export type MojangVersionDetails = z.infer<typeof mojangVersionDetails>
 export type MojangVersionManifest = z.infer<typeof mojangVersionManifest>
 export type MojangVersionManifests = z.infer<typeof mojangVersionManifests>
 export type MojangStringsTemplate = z.infer<typeof mojangStringsTemplate>
+export type XSTSAuthorizeResponse = z.infer<typeof xstsAuthorizeResponse>
 
 export type GameAccount = z.infer<typeof gameAccount>
 export type GameInstall = z.infer<typeof gameInstall>

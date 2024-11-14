@@ -16,8 +16,8 @@ import {
 } from '@chakra-ui/icons'
 import React, { useEffect, useState } from 'react'
 
-import type { TimeSeries } from '../types'
-import { addSampleToTimeseries } from '../utils/timeseries'
+import type { TimeSeries, TimeValue } from '../types'
+import { addSamplesToTimeseries } from '../utils/timeseries'
 import TimeseriesChart from './TimeseriesChart'
 import { QUERY_KEYS, STORE_KEYS } from '../constants'
 import { useQuery } from '@tanstack/react-query'
@@ -36,11 +36,99 @@ interface GameAnalytics {
   timeSeries: Record<string, TimeSeries>
 }
 
+interface TimeseriesUpdates {
+  sources: Set<string>
+  values: Record<string, TimeValue[]>
+}
+
+type PlayersTimeseriesUpdates = Record<string, TimeseriesUpdates>
+
 const soldContainer = /Successfully sold a container worth: \$([,\d]+.\d+)!/
 const soldContainer2 = /Sold \d+ item\(s\) for \$([,\d]+.\d+)!/
 
 const playerKilledPVPLegacy =
   /(\S+) has been killed by (\S+) with ([.\d]+) health left./
+
+const formatPlayerKey = (userName: string, serverName: string) =>
+  `${userName}@${serverName}`
+
+const parsePlayerKey = (key: string) => {
+  const [userName, serverName] = key.split('@')
+  return { userName, serverName }
+}
+
+const ensureAnalyticsTimeSeriesUpdate = (
+  updates: PlayersTimeseriesUpdates,
+  userName: string,
+  serverName: string
+) => {
+  const key = formatPlayerKey(userName, serverName)
+  return updates[key] || (updates[key] = { sources: new Set(), values: {} })
+}
+
+const addAnalyticsTimeSeriesUpdate = (
+  updates: PlayersTimeseriesUpdates,
+  userName: string,
+  serverName: string,
+  seriesName: string,
+  timestamp: Date,
+  value: number
+) => {
+  const userUpdates = ensureAnalyticsTimeSeriesUpdate(
+    updates,
+    userName,
+    serverName
+  )
+  const userSeriesUpdates =
+    userUpdates.values[seriesName] || (userUpdates.values[seriesName] = [])
+  userSeriesUpdates.push({ time: timestamp.getTime(), value })
+}
+
+function updateAnalyticsTimeSeries(
+  analytics: Record<string, GameAnalytics>,
+  window: AnalyticsWindow,
+  updates: PlayersTimeseriesUpdates
+) {
+  const result = { ...analytics }
+  for (const [key, seriesUpdates] of Object.entries(updates)) {
+    const { userName, serverName } = parsePlayerKey(key)
+    const userAnalytics = analytics[key] || {
+      gamelogs: [],
+      userName: userName,
+      serverName: serverName,
+      timeSeries: {},
+    }
+    const updatedUserAnalytics = (result[key] = {
+      ...userAnalytics,
+      gamelogs: Array.from(
+        new Set([...userAnalytics.gamelogs, ...seriesUpdates.sources])
+      ),
+      timeSeries: { ...userAnalytics.timeSeries },
+    })
+    for (const [seriesName, values] of Object.entries(seriesUpdates.values)) {
+      const timeseries = userAnalytics.timeSeries[seriesName] || {
+        duration: window.duration,
+        samples: window.samples,
+        buckets: [],
+      }
+      updatedUserAnalytics.timeSeries[seriesName] = addSamplesToTimeseries(
+        timeseries,
+        values
+      )
+    }
+  }
+  const players = Object.keys(result)
+  for (const player of players) {
+    const userAnalytics = result[player]
+    if (
+      (!userAnalytics.userName || !userAnalytics.serverName) &&
+      !Object.keys(userAnalytics.timeSeries).length
+    ) {
+      delete result[player]
+    }
+  }
+  return result
+}
 
 function topUpAnalyticsTimeSeries(analytics: Record<string, GameAnalytics>) {
   const now = new Date()
@@ -49,63 +137,11 @@ function topUpAnalyticsTimeSeries(analytics: Record<string, GameAnalytics>) {
     const userAnalytics = analytics[key]
     for (const seriesName in userAnalytics.timeSeries) {
       const timeseries = userAnalytics.timeSeries[seriesName]
-      result[key].timeSeries[seriesName] = addSampleToTimeseries(
-        0,
-        now,
-        timeseries,
-        now
-      )
+      result[key].timeSeries[seriesName] = addSamplesToTimeseries(timeseries, [
+        { time: now.getTime(), value: 0 },
+      ])
     }
   }
-  return result
-}
-
-function updateAnalyticsTimeSeries(
-  analytics: Record<string, GameAnalytics>,
-  window: AnalyticsWindow,
-  userName: string,
-  serverName: string,
-  seriesName: string,
-  value: number,
-  timestamp: Date,
-  source?: string
-) {
-  const key = `${userName}@${serverName}`
-  let userAnalytics = analytics[key]
-  if (!userAnalytics) {
-    userAnalytics = {
-      gamelogs: [],
-      userName: userName,
-      serverName: serverName,
-      timeSeries: {},
-    }
-  }
-  let timeseries = userAnalytics.timeSeries[seriesName]
-  if (!timeseries) {
-    timeseries = {
-      duration: window.duration,
-      samples: window.samples,
-      buckets: [],
-    }
-  }
-  timeseries = addSampleToTimeseries(value, timestamp, timeseries, timestamp)
-  const result = {
-    ...analytics,
-    [key]: {
-      ...userAnalytics,
-      gamelogs: [
-        ...userAnalytics.gamelogs,
-        ...(!source || userAnalytics.gamelogs.find((x) => x === source)
-          ? []
-          : [source]),
-      ],
-      timeSeries: {
-        ...userAnalytics.timeSeries,
-        [seriesName]: timeseries,
-      },
-    },
-  }
-  // console.log('updateAnalyticsTimeSeries result', result)
   return result
 }
 
@@ -138,108 +174,103 @@ export function Analytics() {
 
     const handle = window.api.readGameLogs(
       gameLogDirectories.data,
-      (
-        userName: string,
-        serverName: string,
-        content: string,
-        timestamp: Date,
-        source: string
-      ) => {
-        if (!earliestTimestamp) earliestTimestamp = timestamp
+      (lines) => {
+        const updates: PlayersTimeseriesUpdates = {}
+        for (const line of lines) {
+          if (!earliestTimestamp) earliestTimestamp = line.timestamp
+          ensureAnalyticsTimeSeriesUpdate(
+            updates,
+            line.userName,
+            line.serverName
+          ).sources.add(line.source)
 
-        const playerKilledPVPLegacyMatch = content.match(playerKilledPVPLegacy)
-        if (playerKilledPVPLegacyMatch) {
-          let userNameMatch = false
-          if (playerKilledPVPLegacyMatch[1] === userName) {
-            setAnalytics((analytics) =>
-              updateAnalyticsTimeSeries(
-                analytics,
-                analyticsWindow,
-                userName,
-                serverName,
+          const playerKilledPVPLegacyMatch = line.content.match(
+            playerKilledPVPLegacy
+          )
+          if (playerKilledPVPLegacyMatch) {
+            let userNameMatch = false
+            if (playerKilledPVPLegacyMatch[1] === line.userName) {
+              addAnalyticsTimeSeriesUpdate(
+                updates,
+                line.userName,
+                line.serverName,
                 'deaths',
-                1,
-                timestamp,
-                source
+                line.timestamp,
+                1
               )
-            )
-            userNameMatch = true
-          }
-          if (playerKilledPVPLegacyMatch[2] === userName) {
-            setAnalytics((analytics) =>
-              updateAnalyticsTimeSeries(
-                analytics,
-                analyticsWindow,
-                userName,
-                serverName,
+              userNameMatch = true
+            }
+            if (playerKilledPVPLegacyMatch[2] === line.userName) {
+              addAnalyticsTimeSeriesUpdate(
+                updates,
+                line.userName,
+                line.serverName,
                 'kills',
-                1,
-                timestamp,
-                source
+                line.timestamp,
+                1
               )
-            )
-            userNameMatch = true
+              userNameMatch = true
+            }
+            if (userNameMatch)
+              console.log(
+                'PVP kill',
+                playerKilledPVPLegacyMatch[1],
+                'was killed by',
+                playerKilledPVPLegacyMatch[2],
+                'with',
+                playerKilledPVPLegacyMatch[3],
+                'health left',
+                line.source
+              )
+            continue
           }
-          if (userNameMatch)
-            console.log(
-              'PVP kill',
-              playerKilledPVPLegacyMatch[1],
-              'was killed by',
-              playerKilledPVPLegacyMatch[2],
-              'with',
-              playerKilledPVPLegacyMatch[3],
-              'health left',
-              source
+
+          let soldContainerValue = 0
+          const soldContainerMatch = line.content.match(soldContainer)
+          if (soldContainerMatch) {
+            soldContainerValue = parseFloat(
+              soldContainerMatch[1].replace(/,/g, '')
             )
-          return
-        }
+          }
+          const soldContainerMatch2 = line.content.match(soldContainer2)
+          if (soldContainerMatch2) {
+            soldContainerValue = parseFloat(
+              soldContainerMatch2[1].replace(/,/g, '')
+            )
+          }
 
-        let soldContainerValue = 0
-        const soldContainerMatch = content.match(soldContainer)
-        if (soldContainerMatch) {
-          soldContainerValue = parseFloat(
-            soldContainerMatch[1].replace(/,/g, '')
-          )
-        }
-        const soldContainerMatch2 = content.match(soldContainer2)
-        if (soldContainerMatch2) {
-          soldContainerValue = parseFloat(
-            soldContainerMatch2[1].replace(/,/g, '')
-          )
-        }
-
-        if (soldContainerValue) {
-          total += soldContainerValue
-          setAnalytics((analytics) =>
-            updateAnalyticsTimeSeries(
-              analytics,
-              analyticsWindow,
-              userName,
-              serverName,
+          if (soldContainerValue) {
+            total += soldContainerValue
+            addAnalyticsTimeSeriesUpdate(
+              updates,
+              line.userName,
+              line.serverName,
               'sold',
-              soldContainerValue,
-              timestamp,
-              source
+              line.timestamp,
+              soldContainerValue
             )
-          )
-          const totalSeconds =
-            (timestamp.getTime() - earliestTimestamp.getTime()) / 1000
-          const ratePerMinute = (total * 60) / totalSeconds
-          console.log(
-            `${userName}@${serverName} Sold container value`,
-            soldContainerValue,
-            'Total',
-            total,
-            'Rate',
-            ratePerMinute.toFixed(2),
-            'per minute',
-            (ratePerMinute * 60).toFixed(2),
-            'per hour',
-            timestamp,
-            source
-          )
-          return
+            const totalSeconds =
+              (line.timestamp.getTime() - earliestTimestamp.getTime()) / 1000
+            const ratePerMinute = (total * 60) / totalSeconds
+            console.log(
+              `${line.userName}@${line.serverName} Sold container value`,
+              soldContainerValue,
+              'Total',
+              total,
+              'Rate',
+              ratePerMinute.toFixed(2),
+              'per minute',
+              (ratePerMinute * 60).toFixed(2),
+              'per hour',
+              line.timestamp,
+              line.source
+            )
+            continue
+          }
         }
+        setAnalytics((analytics) =>
+          updateAnalyticsTimeSeries(analytics, analyticsWindow, updates)
+        )
       },
       analyticsWindow.beginDate,
       analyticsWindow.endDate
@@ -276,7 +307,7 @@ export function Analytics() {
             onChange={(event) => setAnalyticsProfile(event.target.value)}
           >
             {Object.keys(analytics).map((profile) => (
-              <option value={profile}>{profile}</option>
+              <option key={profile} value={profile}>{profile}</option>
             ))}
           </Select>
         </Flex>
@@ -287,7 +318,7 @@ export function Analytics() {
         <Tooltip label="Show game log files">
           <IconButton
             aria-label="Game log files"
-            icon={showGameLogFiles ? <ChevronUpIcon /> : <ChevronDownIcon />}
+            icon={showGameLogFiles ? <ChevronDownIcon /> : <ChevronUpIcon />}
             onClick={() => setShowGameLogFiles((x) => !x)}
           />
         </Tooltip>
