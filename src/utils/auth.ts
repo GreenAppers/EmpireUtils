@@ -1,14 +1,12 @@
 import axios from 'axios'
-import Store from 'electron-store'
 import {
   GameAccount,
   minecraftLoginResponse,
   minecraftProfile,
-  StoreSchema,
   xboxLiveProfile,
   xstsAuthorizeResponse,
 } from '../constants'
-import { updateGameAccount } from '../store'
+import { Store, StoreSchema, updateGameAccount } from '../store'
 
 // References:
 // - https://mojang-api-docs.gapple.pw/

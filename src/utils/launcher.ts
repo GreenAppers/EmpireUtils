@@ -1,5 +1,4 @@
 import axios from 'axios'
-import Store from 'electron-store'
 import { spawn } from 'child_process'
 import { app } from 'electron'
 import fs from 'fs'
@@ -12,10 +11,10 @@ import {
   GameInstall,
   mojangVersionDetails,
   parseLibraryName,
-  StoreSchema,
   updateVersionDetailsLibrary,
 } from '../constants'
 import { AuthProvider } from '../msal/AuthProvider'
+import { Store, StoreSchema } from '../store'
 import { loginToMinecraft } from './auth'
 import {
   checkFileExists,

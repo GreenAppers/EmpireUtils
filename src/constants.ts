@@ -14,7 +14,7 @@ export const minecraftLoginResponse = z.object({
 })
 
 export const minecraftProfileState = z.enum(['ACTIVE', 'INACTIVE'])
-export const minecraftSkinVariant = z.enum(['SLIM', 'CLASSIC'])
+export const minecraftSkinVariant = z.enum(['CLASSIC', 'SLIM'])
 
 export const minecraftSkin = z.object({
   id: z.string(),
@@ -194,9 +194,16 @@ export const gameInstall = z.object({
   mods: z.optional(z.array(z.string())),
 })
 
-export type MinecraftLoginResponse = z.infer<
-  typeof minecraftLoginResponse
->
+export const waypoint = z.object({
+  name: z.string(),
+  date: z.coerce.date(),
+  x: z.number(),
+  y: z.number(),
+  z: z.number(),
+})
+
+export type MinecraftLoginResponse = z.infer<typeof minecraftLoginResponse>
+export type MinecraftProfile = z.infer<typeof minecraftProfile>
 export type MojangLibrary = z.infer<typeof mojangLibrary>
 export type MojangRule = z.infer<typeof mojangRule>
 export type MojangVersionDetails = z.infer<typeof mojangVersionDetails>
@@ -207,21 +214,20 @@ export type XSTSAuthorizeResponse = z.infer<typeof xstsAuthorizeResponse>
 
 export type GameAccount = z.infer<typeof gameAccount>
 export type GameInstall = z.infer<typeof gameInstall>
+export type Waypoint = z.infer<typeof waypoint>
 
-export type StoreSchema = {
-  gameInstalls: GameInstall[]
-  gameLogDirectories: string[]
-}
-
-export const STORE_KEYS: { [key: string]: keyof StoreSchema } = {
+export const STORE_KEYS = {
+  gameAccounts: 'gameAccounts',
   gameInstalls: 'gameInstalls',
   gameLogDirectories: 'gameLogDirectories',
+  waypoints: 'waypoints',
 }
 
 export const QUERY_KEYS = {
   useGameInstalls: 'useGameInstalls',
   useGameLogDirectories: 'useGameLogDirectories',
   useMojangVersionManifests: 'useMojangVersionManifests',
+  useWaypoints: 'useWaypoints',
 }
 
 export const CHANNELS = {

@@ -1,45 +1,28 @@
-import Store, { Schema } from 'electron-store'
+import { z } from 'zod'
+import Store from 'zod-electron-store'
+
+import { getDefaultGameLogDirectories } from './utils/gamelog'
 import {
+  gameAccount,
   GameAccount,
+  gameInstall,
   GameInstall,
   STORE_KEYS,
-  type StoreSchema,
+  waypoint,
 } from './constants'
-import { getDefaultGameLogDirectories } from './utils/gamelog'
 
-export const schema: Schema<StoreSchema> = {
-  gameInstalls: {
-    type: 'array',
-    items: {
-      type: 'object',
-      properties: {
-        name: { type: 'string' },
-        path: { type: 'string' },
-        uuid: { type: 'string' },
-        versionManifest: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            type: { type: 'string' },
-            url: { type: 'string' },
-            time: { type: 'string' },
-            releaseTime: { type: 'string' },
-          },
-        },
-        fabricLoaderVersion: { type: 'string', default: '' },
-        mods: { type: 'array', items: { type: 'string' }, default: [] },
-      },
-    },
-    default: [],
-  },
-  gameLogDirectories: {
-    type: 'array',
-    items: { type: 'string' },
-    default: getDefaultGameLogDirectories(),
-  },
-}
+export { Store }
 
-export const newStore = () => new Store<StoreSchema>({ schema })
+export const storeSchema = z.object({
+  gameAccounts: z.array(gameAccount).default([]),
+  gameInstalls: z.array(gameInstall).default([]),
+  gameLogDirectories: z.array(z.string()).default(getDefaultGameLogDirectories()),
+  waypoints: z.array(waypoint).default([]),
+})
+
+export type StoreSchema = z.infer<typeof storeSchema>
+
+export const newStore = () => new Store<StoreSchema>({ schema: storeSchema })
 
 export const updateGameAccount = (
   store: Store<StoreSchema>,

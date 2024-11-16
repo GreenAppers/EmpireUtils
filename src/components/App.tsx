@@ -18,6 +18,7 @@ import React from 'react'
 import { Analytics } from './Analytics'
 import { Launcher } from './Launcher'
 import { PieRayHelper } from './PieRayHelper'
+import { Waypoints } from './Waypoints'
 
 function App() {
   const [selectedTab, setSelectedTab] = React.useState(2)
@@ -58,6 +59,7 @@ function App() {
         <TabPanel>{selectedTab === 1 && <PieRayHelper />}</TabPanel>
         <TabPanel>{selectedTab === 2 && <Launcher />}</TabPanel>
         <TabPanel></TabPanel>
+        <TabPanel>{selectedTab === 4 && <Waypoints />}</TabPanel>
       </TabPanels>
     </Tabs>
   )
