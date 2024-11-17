@@ -4,6 +4,12 @@
 
 Minecraft analytics and anti/PieRay helper.
 
+## Analytics
+
+![Analytics](images/analytics.png?raw=true "Analytics")
+
+Setup log directories and regex rules for statistics visualization.
+
 ## 🥧📡 Anti/PieRay Helper
 
 - Press F3+C in vanilla, or setup bind for [Lunar Client](https://www.lunarclient.com/) mod [Coordinates](https://lunarclient.dev/apollo/developers/mods/coordinates) to "Copy Coords to Clipboard".

@@ -8,12 +8,7 @@ import {
   Select,
   Tooltip,
 } from '@chakra-ui/react'
-import {
-  ChevronDownIcon,
-  ChevronUpIcon,
-  EditIcon,
-  SettingsIcon,
-} from '@chakra-ui/icons'
+import { ChevronDownIcon, ChevronUpIcon, EditIcon } from '@chakra-ui/icons'
 import React, { useEffect, useState } from 'react'
 
 import type { TimeSeries, TimeValue } from '../types'
@@ -167,6 +162,8 @@ export function Analytics() {
   })
   const gameAnalyticsPatterns = useGameAnalyticsPatternsQuery()
   const gameLogDirectories = useGameLogDirectoriesQuery()
+  const [showGameAnalyticsPatterns, setShowGameAnalyticsPatterns] =
+    useState(false)
   const [showGameLogDirectories, setShowGameLogDirectories] = useState(false)
   const [showGameLogFiles, setShowGameLogFiles] = useState(false)
 
@@ -294,20 +291,31 @@ export function Analytics() {
       </Heading>
 
       <Heading as="h6" size="xs" marginTop="1rem">
+        Analytics patterns&nbsp;
+        <Tooltip label="Show game analytics patterns">
+          <IconButton
+            aria-label="Game analtics patterns"
+            icon={showGameLogFiles ? <ChevronDownIcon /> : <ChevronUpIcon />}
+            onClick={() => setShowGameAnalyticsPatterns((x) => !x)}
+          />
+        </Tooltip>
+      </Heading>
+
+      {showGameAnalyticsPatterns && (
+        <List>
+          {(gameAnalyticsPatterns?.data ?? []).map((pattern) => (
+            <ListItem key={pattern.name}>{pattern.pattern.toString()}</ListItem>
+          ))}
+        </List>
+      )}
+
+      <Heading as="h6" size="xs" marginTop="1rem">
         Game logs&nbsp;
         <Tooltip label="Show game log files">
           <IconButton
             aria-label="Game log files"
             icon={showGameLogFiles ? <ChevronDownIcon /> : <ChevronUpIcon />}
             onClick={() => setShowGameLogFiles((x) => !x)}
-          />
-        </Tooltip>
-        &nbsp;
-        <Tooltip label="Setup game log directories">
-          <IconButton
-            aria-label="Game log directories"
-            icon={<SettingsIcon />}
-            onClick={() => setShowGameLogDirectories((x) => !x)}
           />
         </Tooltip>
       </Heading>
@@ -327,6 +335,17 @@ export function Analytics() {
           ))}
         </List>
       )}
+
+      <Heading as="h6" size="xs" marginTop="1rem">
+        Game log directories&nbsp;
+        <Tooltip label="Setup game log directories">
+          <IconButton
+            aria-label="Game log directories"
+            icon={showGameLogFiles ? <ChevronDownIcon /> : <ChevronUpIcon />}
+            onClick={() => setShowGameLogDirectories((x) => !x)}
+          />
+        </Tooltip>
+      </Heading>
 
       {showGameLogDirectories && (
         <>
