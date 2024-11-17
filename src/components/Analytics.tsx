@@ -19,7 +19,7 @@ import React, { useEffect, useState } from 'react'
 import type { TimeSeries, TimeValue } from '../types'
 import { addSamplesToTimeseries } from '../utils/timeseries'
 import TimeseriesChart from './TimeseriesChart'
-import { QUERY_KEYS, STORE_KEYS } from '../constants'
+import { GameAnalyticsPattern, QUERY_KEYS, STORE_KEYS } from '../constants'
 import { useQuery } from '@tanstack/react-query'
 
 interface AnalyticsWindow {
@@ -42,12 +42,6 @@ interface TimeseriesUpdates {
 }
 
 type PlayersTimeseriesUpdates = Record<string, TimeseriesUpdates>
-
-const soldContainer = /Successfully sold a container worth: \$([,\d]+.\d+)!/
-const soldContainer2 = /Sold \d+ item\(s\) for \$([,\d]+.\d+)!/
-
-const playerKilledPVPLegacy =
-  /(\S+) has been killed by (\S+) with ([.\d]+) health left./
 
 const formatPlayerKey = (userName: string, serverName: string) =>
   `${userName}@${serverName}`
@@ -145,6 +139,15 @@ function topUpAnalyticsTimeSeries(analytics: Record<string, GameAnalytics>) {
   return result
 }
 
+export const useGameAnalyticsPatternsQuery = () =>
+  useQuery<GameAnalyticsPattern[]>({
+    queryKey: [QUERY_KEYS.useGameAnalyticsPatterns],
+    queryFn: () => window.api.store.get(STORE_KEYS.gameAnalyticsPatterns),
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  })
+
 export const useGameLogDirectoriesQuery = () =>
   useQuery<string[]>({
     queryKey: [QUERY_KEYS.useGameLogDirectories],
@@ -162,101 +165,75 @@ export function Analytics() {
     duration: 60 * 1000,
     samples: 24 * 60,
   })
+  const gameAnalyticsPatterns = useGameAnalyticsPatternsQuery()
   const gameLogDirectories = useGameLogDirectoriesQuery()
   const [showGameLogDirectories, setShowGameLogDirectories] = useState(false)
   const [showGameLogFiles, setShowGameLogFiles] = useState(false)
 
   useEffect(() => {
-    let total = 0
-    let earliestTimestamp: Date | undefined
     if (!gameLogDirectories.isSuccess || !gameLogDirectories.data?.length)
       return
+
+    const stats: Record<
+      string,
+      {
+        earliestTimestamp: Date
+        series: Record<string, { total: number }>
+      }
+    > = {}
 
     const handle = window.api.readGameLogs(
       gameLogDirectories.data,
       (lines) => {
         const updates: PlayersTimeseriesUpdates = {}
         for (const line of lines) {
-          if (!earliestTimestamp) earliestTimestamp = line.timestamp
+          const key = formatPlayerKey(line.userName, line.serverName)
+          const stat =
+            stats[key] ||
+            (stats[key] = { earliestTimestamp: line.timestamp, series: {} })
+
           ensureAnalyticsTimeSeriesUpdate(
             updates,
             line.userName,
             line.serverName
           ).sources.add(line.source)
 
-          const playerKilledPVPLegacyMatch = line.content.match(
-            playerKilledPVPLegacy
-          )
-          if (playerKilledPVPLegacyMatch) {
-            let userNameMatch = false
-            if (playerKilledPVPLegacyMatch[1] === line.userName) {
-              addAnalyticsTimeSeriesUpdate(
-                updates,
-                line.userName,
-                line.serverName,
-                'deaths',
-                line.timestamp,
-                1
-              )
-              userNameMatch = true
+          if (!gameAnalyticsPatterns.isSuccess) continue
+          for (const pattern of gameAnalyticsPatterns.data) {
+            const match = line.content.match(pattern.pattern)
+            if (
+              !match ||
+              (pattern.usernameIndex !== undefined &&
+                match[pattern.usernameIndex] !== line.userName)
+            ) {
+              continue
             }
-            if (playerKilledPVPLegacyMatch[2] === line.userName) {
-              addAnalyticsTimeSeriesUpdate(
-                updates,
-                line.userName,
-                line.serverName,
-                'kills',
-                line.timestamp,
-                1
-              )
-              userNameMatch = true
-            }
-            if (userNameMatch)
-              console.log(
-                'PVP kill',
-                playerKilledPVPLegacyMatch[1],
-                'was killed by',
-                playerKilledPVPLegacyMatch[2],
-                'with',
-                playerKilledPVPLegacyMatch[3],
-                'health left',
-                line.source
-              )
-            continue
-          }
-
-          let soldContainerValue = 0
-          const soldContainerMatch = line.content.match(soldContainer)
-          if (soldContainerMatch) {
-            soldContainerValue = parseFloat(
-              soldContainerMatch[1].replace(/,/g, '')
-            )
-          }
-          const soldContainerMatch2 = line.content.match(soldContainer2)
-          if (soldContainerMatch2) {
-            soldContainerValue = parseFloat(
-              soldContainerMatch2[1].replace(/,/g, '')
-            )
-          }
-
-          if (soldContainerValue) {
-            total += soldContainerValue
+            const value =
+              (pattern.valueIndex &&
+                parseFloat(match[pattern.valueIndex]?.replace(/,/g, ''))) ||
+              1
+            const seriesStat =
+              stat.series[pattern.name] ||
+              (stat.series[pattern.name] = { total: 0 })
+            seriesStat.total += value
             addAnalyticsTimeSeriesUpdate(
               updates,
               line.userName,
               line.serverName,
-              'sold',
+              pattern.name,
               line.timestamp,
-              soldContainerValue
+              value
             )
+
             const totalSeconds =
-              (line.timestamp.getTime() - earliestTimestamp.getTime()) / 1000
-            const ratePerMinute = (total * 60) / totalSeconds
+              (line.timestamp.getTime() - stat.earliestTimestamp.getTime()) /
+              1000
+            const ratePerMinute = (seriesStat.total * 60) / totalSeconds
             console.log(
-              `${line.userName}@${line.serverName} Sold container value`,
-              soldContainerValue,
+              `${line.userName}@${line.serverName} ${pattern.name}`,
+              value,
               'Total',
-              total,
+              seriesStat.total,
               'Rate',
               ratePerMinute.toFixed(2),
               'per minute',
@@ -265,7 +242,6 @@ export function Analytics() {
               line.timestamp,
               line.source
             )
-            continue
           }
         }
         setAnalytics((analytics) =>
@@ -278,6 +254,8 @@ export function Analytics() {
     return () => window.api.removeListener(handle)
   }, [
     analyticsWindow,
+    gameAnalyticsPatterns.isSuccess,
+    gameAnalyticsPatterns.data,
     gameLogDirectories.isSuccess,
     gameLogDirectories.data,
     setAnalytics,
@@ -307,7 +285,9 @@ export function Analytics() {
             onChange={(event) => setAnalyticsProfile(event.target.value)}
           >
             {Object.keys(analytics).map((profile) => (
-              <option key={profile} value={profile}>{profile}</option>
+              <option key={profile} value={profile}>
+                {profile}
+              </option>
             ))}
           </Select>
         </Flex>

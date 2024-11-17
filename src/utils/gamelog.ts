@@ -1,10 +1,12 @@
 import fs from 'fs'
+import { glob } from 'glob'
 import os from 'os'
 import path from 'path'
 import split2 from 'split2'
 import stream from 'stream'
 import { Tail } from 'tail'
 import zlib from 'zlib'
+import { GameAnalyticsPattern } from '../constants'
 import type { GameLog, GameLogLine } from '../types'
 
 export interface GameLogContext {
@@ -55,16 +57,36 @@ export function getDefaultGameLogDirectories() {
         `${process.env.HOME}/Library/Application Support/minecraft/logs`
       )
       paths.push(`${process.env.HOME}/.lunarclient/offline/multiver/logs`)
+      paths.push('/Applications/MultiMC.app/Data/instances/*/.minecraft/logs')
       break
   }
 
-  return paths.filter((path) => {
-    try {
-      return fs.statSync(path).isDirectory()
-    } catch {
-      return false
-    }
-  })
+  return paths
+}
+
+export function getDefaultAnalyticsPatterns(): GameAnalyticsPattern[] {
+  return [
+    {
+      name: 'sold',
+      pattern: /Successfully sold a container worth: \$([,\d]+.\d+)!/,
+      valueIndex: 1,
+    },
+    {
+      name: 'sold',
+      pattern: /Sold \d+ item\(s\) for \$([,\d]+.\d+)!/,
+      valueIndex: 1,
+    },
+    {
+      name: 'deaths',
+      pattern: /(\S+) has been killed by (\S+) with ([.\d]+) health left./,
+      usernameIndex: 1,
+    },
+    {
+      name: 'kills',
+      pattern: /(\S+) has been killed by (\S+) with ([.\d]+) health left./,
+      usernameIndex: 2,
+    },
+  ]
 }
 
 export async function findGameLogFiles(
@@ -75,12 +97,9 @@ export async function findGameLogFiles(
   const logFiles: string[] = []
   for (const dir of gameLogDirectories) {
     try {
-      const files = await fs.promises.readdir(dir)
-      logFiles.push(
-        ...files
-          .filter((file) => file.endsWith('.log') || file.endsWith('.log.gz'))
-          .map((file) => path.join(dir, file))
-      )
+      const pattern = path.join(dir, '*.{log,log.gz}')
+      const files = await glob(pattern)
+      logFiles.push(...files)
     } catch {
       continue
     }

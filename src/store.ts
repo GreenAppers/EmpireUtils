@@ -1,28 +1,46 @@
 import { z } from 'zod'
 import Store from 'zod-electron-store'
 
-import { getDefaultGameLogDirectories } from './utils/gamelog'
 import {
   gameAccount,
   GameAccount,
+  gameAnalyticsPattern,
   gameInstall,
   GameInstall,
   STORE_KEYS,
   waypoint,
 } from './constants'
+import {
+  getDefaultAnalyticsPatterns,
+  getDefaultGameLogDirectories,
+} from './utils/gamelog'
 
 export { Store }
 
 export const storeSchema = z.object({
   gameAccounts: z.array(gameAccount).default([]),
+  gameAnalyticsPatterns: z
+    .array(gameAnalyticsPattern)
+    .default(getDefaultAnalyticsPatterns()),
   gameInstalls: z.array(gameInstall).default([]),
-  gameLogDirectories: z.array(z.string()).default(getDefaultGameLogDirectories()),
+  gameLogDirectories: z
+    .array(z.string())
+    .default(getDefaultGameLogDirectories()),
   waypoints: z.array(waypoint).default([]),
 })
 
 export type StoreSchema = z.infer<typeof storeSchema>
 
-export const newStore = () => new Store<StoreSchema>({ schema: storeSchema })
+export const newStore = () =>
+  new Store<StoreSchema>({
+    schema: storeSchema,
+    serialize: (value) =>
+      JSON.stringify(
+        value,
+        (_, x) => (x instanceof RegExp ? x.toString().slice(1,-1) : x),
+        '\t'
+      ),
+  })
 
 export const updateGameAccount = (
   store: Store<StoreSchema>,

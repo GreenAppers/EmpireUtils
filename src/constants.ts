@@ -185,6 +185,15 @@ export const gameAccount = z.object({
   yggdrasilToken: minecraftLoginResponse,
 })
 
+export const gameAnalyticsPattern = z.object({
+  name: z.string(),
+  pattern: z
+    .union([z.string(), z.instanceof(RegExp)])
+    .transform((x) => new RegExp(x)),
+  usernameIndex: z.number().optional(),
+  valueIndex: z.number().optional(),
+})
+
 export const gameInstall = z.object({
   name: z.string(),
   path: z.string(),
@@ -213,10 +222,12 @@ export type MojangStringsTemplate = z.infer<typeof mojangStringsTemplate>
 export type XSTSAuthorizeResponse = z.infer<typeof xstsAuthorizeResponse>
 
 export type GameAccount = z.infer<typeof gameAccount>
+export type GameAnalyticsPattern = z.infer<typeof gameAnalyticsPattern>
 export type GameInstall = z.infer<typeof gameInstall>
 export type Waypoint = z.infer<typeof waypoint>
 
 export const STORE_KEYS = {
+  gameAnalyticsPatterns: 'gameAnalyticsPatterns',
   gameAccounts: 'gameAccounts',
   gameInstalls: 'gameInstalls',
   gameLogDirectories: 'gameLogDirectories',
@@ -224,6 +235,7 @@ export const STORE_KEYS = {
 }
 
 export const QUERY_KEYS = {
+  useGameAnalyticsPatterns: 'useGameAnalyticsPatterns',
   useGameInstalls: 'useGameInstalls',
   useGameLogDirectories: 'useGameLogDirectories',
   useMojangVersionManifests: 'useMojangVersionManifests',
