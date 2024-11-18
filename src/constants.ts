@@ -270,6 +270,9 @@ export const getGameInstalModLoaderName = (
   return ModLoaderName.None
 }
 
+export const getGameInstallIsHacked = (gameInstall: Partial<GameInstall>) =>
+  gameInstall?.mods?.some((x) => x.includes('meteor-client'))
+
 export const setGameInstallModLoaderName = (
   gameInstall: Partial<GameInstall>,
   modLoaderName: string

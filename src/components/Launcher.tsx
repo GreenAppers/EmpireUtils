@@ -21,6 +21,7 @@ import {
   Select,
   Spacer,
   Spinner,
+  Text,
   Tooltip,
 } from '@chakra-ui/react'
 import { AddIcon, EditIcon } from '@chakra-ui/icons'
@@ -32,6 +33,7 @@ import { v4 as uuidv4 } from 'uuid'
 import {
   findVersionManifest,
   GameInstall,
+  getGameInstallIsHacked,
   getGameInstalModLoaderName,
   ModLoaderName,
   MojangVersionManifests,
@@ -386,8 +388,8 @@ export function Launcher() {
                     <Image
                       src={
                         i % 2 === 0
-                          ? 'https://github.com/GreenAppers/EmpireUtils/blob/dd24bcbefda54039d8882b41e16cf455403d3aa9/images/icons/grassblock.png?raw=true'
-                          : 'https://github.com/GreenAppers/EmpireUtils/blob/dd24bcbefda54039d8882b41e16cf455403d3aa9/images/icons/creeper.png?raw=true'
+                          ? 'app-file://images/icons/grassblock.png'
+                          : 'app-file://images/icons/creeper.png'
                       }
                     />
                   }
@@ -400,10 +402,26 @@ export function Launcher() {
                 />
                 <Box>
                   <Heading as="h5" size="sm">
-                    {install.name +
-                      (install.versionManifest.id !== install.name
-                        ? `: ${install.versionManifest.id}`
-                        : '')}
+                    <Flex>
+                      <Text>
+                        {install.name +
+                          (install.versionManifest.id !== install.name
+                            ? `: ${install.versionManifest.id}`
+                            : '')}
+                        &nbsp;
+                      </Text>
+
+                      {getGameInstalModLoaderName(install) ===
+                      ModLoaderName.Fabric ? (
+                        getGameInstallIsHacked(install) ? (
+                          <Text color="red.500">[Hacked]</Text>
+                        ) : (
+                          <Text color="orange.200">[Fabric, Allowed mods]</Text>
+                        )
+                      ) : (
+                        <Text color="yellow.100">[Vanilla]</Text>
+                      )}
+                    </Flex>
                   </Heading>
                   {install.uuid}
                 </Box>

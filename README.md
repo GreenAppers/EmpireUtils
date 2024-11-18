@@ -4,6 +4,10 @@
 
 Minecraft analytics and anti/PieRay helper.
 
+## Launcher
+
+![Launcher](images/launcher.png?raw=true "Launcher")
+
 ## Analytics
 
 ![Analytics](images/analytics.png?raw=true "Analytics")

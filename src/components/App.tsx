@@ -9,10 +9,12 @@ import {
   TabPanel,
   TabPanels,
   Box,
-  useColorModeValue,
   Avatar,
   Spacer,
   Tooltip,
+  ColorModeProvider,
+  ThemeProvider,
+  extendTheme,
 } from '@chakra-ui/react'
 import React from 'react'
 import { Analytics } from './Analytics'
@@ -20,34 +22,58 @@ import { Launcher } from './Launcher'
 import { PieRayHelper } from './PieRayHelper'
 import { Waypoints } from './Waypoints'
 
-function App() {
+const theme = extendTheme({})
+
+export function ThemedApp(props: { children: React.ReactNode }) {
+  return (
+    <ThemeProvider theme={theme}>
+      <ColorModeProvider value="dark">
+        <Box
+          color="chakra-body-text"
+          style={{
+            backgroundImage: 'url(app-file://images/icons/deepslate.png)',
+            backgroundSize: '64px',
+            height: '100%',
+          }}
+        >
+          {props.children}
+        </Box>
+      </ColorModeProvider>
+    </ThemeProvider>
+  )
+}
+
+export function App() {
   const [selectedTab, setSelectedTab] = React.useState(2)
   return (
     <Tabs
       variant="soft-rounded"
-      colorScheme="green"
+      colorScheme="yellow"
       index={selectedTab}
       onChange={(index) => setSelectedTab(index)}
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.4)' }}
     >
-      <Box bg={useColorModeValue('gray.100', 'gray.900')} px={4}>
+      <Box bgImage="app-file://images/icons/blackstone.png" bgSize={64} px={4}>
         <Flex alignItems="center" height="6rem">
           <IconButton
             aria-label="logo"
             width="5rem"
-            icon={
-              <Image src="https://github.com/GreenAppers/EmpireUtils/blob/389e3594b37a48f48d01fd8b8b48fa09fe9987fa/images/1024.png?raw=true" />
-            }
+            variant="ghost"
+            icon={<Image src="app-file://images/1024fg.png" />}
           />
           &nbsp;
           <TabList>
-            <Tab>Analytics</Tab>
-            <Tab>Anti/PieRay</Tab>
-            <Tab>Launcher</Tab>
-            <Tab>Strongholds</Tab>
-            <Tab>Waypoints</Tab>
+            <Tab color="yellow.100">Analytics</Tab>
+            <Tab color="yellow.100">Anti/PieRay</Tab>
+            <Tab color="yellow.100">Launcher</Tab>
+            <Tab color="yellow.100">Strongholds</Tab>
+            <Tab color="yellow.100">Waypoints</Tab>
           </TabList>
           <Spacer />
-          <Button onClick={() => window.api.loginToMicrosoftAccount()}>
+          <Button
+            variant="ghost"
+            onClick={() => window.api.loginToMicrosoftAccount()}
+          >
             <Tooltip label="Sign in">
               <Avatar />
             </Tooltip>
@@ -64,5 +90,3 @@ function App() {
     </Tabs>
   )
 }
-
-export default App

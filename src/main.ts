@@ -4,6 +4,8 @@ import {
   clipboard,
   dialog,
   ipcMain,
+  net,
+  protocol,
   session,
   shell,
 } from 'electron'
@@ -12,7 +14,7 @@ import isDev from 'electron-is-dev'
 import log from 'electron-log/main'
 
 import './index.css'
-import { CHANNELS, GameInstall, LAUNCH_CHANNEL, STORE_KEYS } from './constants'
+import { CHANNELS, GameInstall, LAUNCH_CHANNEL } from './constants'
 import { AuthProvider } from './msal/AuthProvider'
 import { newStore, removeGameInstall, updateGameInstall } from './store'
 import {
@@ -82,11 +84,14 @@ app.on('ready', () => {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self' 'unsafe-eval'; connect-src 'self' https://launchermeta.mojang.com https://meta.fabricmc.net; img-src 'self' https:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline';",
+          "default-src 'self' 'unsafe-eval'; connect-src 'self' https://launchermeta.mojang.com https://meta.fabricmc.net; img-src 'self' https: app-file:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline';",
         ],
       },
     })
   })
+  protocol.handle('app-file', async (request) =>
+    net.fetch(request.url.replace(`app-file://`, `file://${app.getAppPath()}/`))
+  )
   ipcMain.handle(CHANNELS.electronStoreGet, (_event, key: string) =>
     store.get(key)
   )
