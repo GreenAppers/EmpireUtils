@@ -73,11 +73,21 @@ export function App() {
           />
           &nbsp;
           <TabList>
-            <Tab color="yellow.100">Analytics</Tab>
-            <Tab color="yellow.100">Anti/PieRay</Tab>
-            <Tab color="yellow.100">Launcher</Tab>
-            <Tab color="yellow.100">Strongholds</Tab>
-            <Tab color="yellow.100">Waypoints</Tab>
+            <Tab color="yellow.100" _hover={{ color: 'yellow.300' }}>
+              Analytics
+            </Tab>
+            <Tab color="yellow.100" _hover={{ color: 'yellow.300' }}>
+              Anti/PieRay
+            </Tab>
+            <Tab color="yellow.100" _hover={{ color: 'yellow.300' }}>
+              Launcher
+            </Tab>
+            <Tab color="yellow.100" _hover={{ color: 'yellow.300' }}>
+              Strongholds
+            </Tab>
+            <Tab color="yellow.100" _hover={{ color: 'yellow.300' }}>
+              Waypoints
+            </Tab>
           </TabList>
           <Spacer />
           {gameAccount ? (

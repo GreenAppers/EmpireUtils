@@ -1,4 +1,4 @@
-import { CSSProperties, useCallback, useEffect, useRef } from 'react'
+import { CSSProperties, useEffect, useRef } from 'react'
 
 export function PlayerHead(props: { headSize?: number; skinUrl?: string }) {
   const headSize = props.headSize || 120
@@ -22,18 +22,19 @@ export function PlayerHead(props: { headSize?: number; skinUrl?: string }) {
   const divHeadRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
 
-  const rotateHead = useCallback(
-    (xPos: number, yPos: number) => {
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
       if (!divHeadRef.current) return
       divHeadRef.current.style.transform =
-        xPos !== undefined && yPos !== undefined
-          ? `translateZ(-${halfHeadSize}px) ` +
-            `rotateY(${xPos/12-60}deg) ` +
-            `rotateX(${-yPos/16}deg)`
-          : ''
-    },
-    [divHeadRef.current]
-  )
+        `translateZ(-${halfHeadSize}px) ` +
+        `rotateY(${event.clientX / 12 - 60}deg) ` +
+        `rotateX(${-Math.min(event.clientY, 400) / 16}deg)`
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+    }
+  }, [])
 
   useEffect(() => {
     const img = imgRef.current
@@ -178,17 +179,6 @@ export function PlayerHead(props: { headSize?: number; skinUrl?: string }) {
 
   return (
     <div>
-      <div
-        onMouseMove={(event) => rotateHead(event.clientX, event.clientY)}
-        style={{
-          position: 'absolute',
-          width: '100%',
-          height: '100%',
-          top: '0px',
-          left: '0px',
-        }}
-      />
-
       <section
         style={{
           width: `${headSize}px`,

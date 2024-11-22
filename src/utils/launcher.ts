@@ -177,19 +177,6 @@ export async function launchInstall(
     callback('Updating install')
     const versionDetails = await updateInstall(install)
 
-    callback('Authenticating')
-    let accessToken = '0'
-    try {
-      const microsoftAuth = await authProvider.login()
-      const gameAccount = await loginToMinecraft(
-        microsoftAuth?.accessToken,
-        store
-      )
-      accessToken = gameAccount.yggdrasilToken.access_token
-    } catch (error) {
-      callback('Error authenticating: ' + error.toString())
-    }
-
     const osArch = getOsArch()
     const osName = getOsName()
     const librariesPath = getLibrariesPath()
@@ -200,7 +187,7 @@ export async function launchInstall(
       assets_root: '',
       assets_index_name: '1.21',
       auth_uuid: '',
-      auth_access_token: accessToken || '0',
+      auth_access_token: '0',
       clientid: '',
       auth_xuid: '',
       user_type: '',
@@ -210,6 +197,22 @@ export async function launchInstall(
       launcher_version: '1.0.0',
       classpath: '',
     }
+
+    callback('Authenticating')
+    try {
+      const microsoftAuth = await authProvider.login()
+      const gameAccount = await loginToMinecraft(
+        microsoftAuth?.accessToken,
+        store
+      )
+      template.auth_access_token = gameAccount.yggdrasilToken.access_token
+      template.auth_player_name = gameAccount.profile.name
+      template.auth_uuid = gameAccount.profile.id
+      template.user_type = 'msa'
+    } catch (error) {
+      callback('Error authenticating: ' + error.toString())
+    }
+
     const appendClasspath = (path: string) =>
       (template.classpath += `${template.classpath.length ? ':' : ''}${path}`)
     for (const library of versionDetails.libraries) {

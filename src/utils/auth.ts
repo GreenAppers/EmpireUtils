@@ -95,46 +95,23 @@ export async function loginToMinecraft(
 ): Promise<GameAccount> {
   if (!microsoftToken) throw new Error('Microsoft token is required')
   const xboxLiveLogin = await postXSTSUserAuthenticate(microsoftToken)
-  console.log('got xbixLiveLogin', xboxLiveLogin)
-
   const xboxLiveAuth = await postXSTSAuthorize(
     xboxLiveLogin.Token,
     'http://xboxlive.com'
   )
-
-  console.log(
-    'got xboxLiveAuth',
-    xboxLiveAuth,
-    xboxLiveAuth.DisplayClaims.xui[0],
-    xboxLiveAuth.Token
-  )
-
   const minecraftAuth = await postXSTSAuthorize(
     xboxLiveLogin.Token,
     'rp://api.minecraftservices.com/'
   )
-  console.log(
-    'got minecraftAuth',
-    minecraftAuth,
-    minecraftAuth.DisplayClaims.xui[0],
-    minecraftAuth.Token
-  )
-
-  const profile = await getXBoxLiveProfile(
+  /* const profile = await getXBoxLiveProfile(
     xboxLiveLogin.DisplayClaims.xui[0].uhs,
     xboxLiveAuth.Token
-  )
-  console.log('got profile', profile, JSON.stringify(profile))
-
+  ) */
   const login = await postMinecraftLoginWithXBox(
     minecraftAuth.DisplayClaims.xui[0].uhs,
     minecraftAuth.Token
   )
-  console.log('got login', login)
-
   const minecraftProfile = await getMinecraftProfile(login.access_token)
-  console.log('got minecraft profile', minecraftProfile)
-
   const gameAccount: GameAccount = {
     active: true,
     profile: minecraftProfile,
@@ -144,6 +121,5 @@ export async function loginToMinecraft(
     yggdrasilToken: login,
   }
   updateGameAccount(store, gameAccount)
-
   return gameAccount
 }
