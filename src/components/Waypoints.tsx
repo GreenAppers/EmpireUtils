@@ -9,18 +9,7 @@ import {
   Thead,
   Tr,
 } from '@chakra-ui/react'
-
-import { QUERY_KEYS, STORE_KEYS, Waypoint } from '../constants'
-import { useQuery } from '@tanstack/react-query'
-
-export const useWaypointsQuery = () =>
-  useQuery<Waypoint[]>({
-    queryKey: [QUERY_KEYS.useWaypoints],
-    queryFn: () => window.api.store.get(STORE_KEYS.waypoints),
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  })
+import { useWaypointsQuery } from '../hooks/useStore'
 
 export function Waypoints() {
   const waypoints = useWaypointsQuery()

@@ -213,6 +213,7 @@ export const waypoint = z.object({
 
 export type MinecraftLoginResponse = z.infer<typeof minecraftLoginResponse>
 export type MinecraftProfile = z.infer<typeof minecraftProfile>
+export type MinecraftProfileState = z.infer<typeof minecraftProfileState>
 export type MojangLibrary = z.infer<typeof mojangLibrary>
 export type MojangRule = z.infer<typeof mojangRule>
 export type MojangVersionDetails = z.infer<typeof mojangVersionDetails>
@@ -235,6 +236,7 @@ export const STORE_KEYS = {
 }
 
 export const QUERY_KEYS = {
+  useGameAccounts: 'useGameAccounts',
   useGameAnalyticsPatterns: 'useGameAnalyticsPatterns',
   useGameInstalls: 'useGameInstalls',
   useGameLogDirectories: 'useGameLogDirectories',

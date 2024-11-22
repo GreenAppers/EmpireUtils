@@ -16,13 +16,17 @@ import {
   ThemeProvider,
   extendTheme,
 } from '@chakra-ui/react'
-import React from 'react'
+import React, { useMemo } from 'react'
+
+import { minecraftProfileState } from '../constants'
+import { useGameAcocuntsQuery } from '../hooks/useStore'
 import { Analytics } from './Analytics'
 import { Launcher } from './Launcher'
 import { PieRayHelper } from './PieRayHelper'
 import { Waypoints } from './Waypoints'
+import { PlayerHead } from './PlayerHead'
 
-const theme = extendTheme({})
+export const theme = extendTheme({})
 
 export function ThemedApp(props: { children: React.ReactNode }) {
   return (
@@ -44,7 +48,13 @@ export function ThemedApp(props: { children: React.ReactNode }) {
 }
 
 export function App() {
+  const gameAccounts = useGameAcocuntsQuery()
+  const gameAccount = useMemo(
+    () => gameAccounts.data?.find((x) => x.active && x.profile.name),
+    [gameAccounts.data]
+  )
   const [selectedTab, setSelectedTab] = React.useState(2)
+
   return (
     <Tabs
       variant="soft-rounded"
@@ -70,14 +80,25 @@ export function App() {
             <Tab color="yellow.100">Waypoints</Tab>
           </TabList>
           <Spacer />
-          <Button
-            variant="ghost"
-            onClick={() => window.api.loginToMicrosoftAccount()}
-          >
-            <Tooltip label="Sign in">
-              <Avatar />
-            </Tooltip>
-          </Button>
+          {gameAccount ? (
+            <PlayerHead
+              headSize={76}
+              skinUrl={
+                gameAccount.profile.skins?.find(
+                  (x) => x.state === minecraftProfileState.Values.ACTIVE
+                )?.url
+              }
+            />
+          ) : (
+            <Button
+              variant="ghost"
+              onClick={() => window.api.loginToMicrosoftAccount()}
+            >
+              <Tooltip label="Sign in">
+                <Avatar />
+              </Tooltip>
+            </Button>
+          )}
         </Flex>
       </Box>
       <TabPanels>

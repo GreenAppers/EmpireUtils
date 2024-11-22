@@ -169,7 +169,7 @@ export async function launchInstall(
 ) {
   try {
     if (launchRunning[launchId]) {
-      console.log('Launch already running')
+      console.log(`Launch ${launchId} already running`)
       return
     }
     launchRunning[launchId] = install
@@ -178,12 +178,17 @@ export async function launchInstall(
     const versionDetails = await updateInstall(install)
 
     callback('Authenticating')
-    const microsoftAuth = await authProvider.login()
-    const gameAccount = await loginToMinecraft(
-      microsoftAuth?.accessToken,
-      store
-    )
-    const accessToken = gameAccount.yggdrasilToken.access_token
+    let accessToken = '0'
+    try {
+      const microsoftAuth = await authProvider.login()
+      const gameAccount = await loginToMinecraft(
+        microsoftAuth?.accessToken,
+        store
+      )
+      accessToken = gameAccount.yggdrasilToken.access_token
+    } catch (error) {
+      callback('Error authenticating: ' + error.toString())
+    }
 
     const osArch = getOsArch()
     const osName = getOsName()
@@ -233,21 +238,21 @@ export async function launchInstall(
     const child = spawn(command[0], command.slice(1), {
       cwd: install.path,
     })
-    child.stdout.pipe(process.stdout)
-    child.stderr.pipe(process.stderr)
+    child.stdout.on('data', (data) => callback(data.toString()))
+    child.stderr.on('data', (data) => callback(data.toString()))
     child.on('error', (err: Error) => {
       throw new Error(`launch:${launchId} failed to start! ${err}`)
     })
     child.on('exit', (code: number) => {
       if (code === 0) {
-        console.info(`launch:${launchId} exited`)
+        callback(`launch:${launchId} exited`)
       } else {
-        console.info(`launch:${launchId} exited with code ${code}`)
+        callback(`launch:${launchId} exited with code ${code}`)
       }
     })
     callback(`Complete: ${child.pid}`)
   } catch (error) {
-    console.log('launchInstall error', error)
+    callback('Error launching: ' + error.toString())
     throw error
   } finally {
     delete launchRunning[launchId]

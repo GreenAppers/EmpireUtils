@@ -11,11 +11,10 @@ import {
 import { ChevronDownIcon, ChevronUpIcon, EditIcon } from '@chakra-ui/icons'
 import React, { useEffect, useState } from 'react'
 
+import { useGameAnalyticsPatternsQuery, useGameLogDirectoriesQuery } from '../hooks/useStore'
 import type { TimeSeries, TimeValue } from '../types'
 import { addSamplesToTimeseries } from '../utils/timeseries'
 import TimeseriesChart from './TimeseriesChart'
-import { GameAnalyticsPattern, QUERY_KEYS, STORE_KEYS } from '../constants'
-import { useQuery } from '@tanstack/react-query'
 
 interface AnalyticsWindow {
   beginDate?: Date
@@ -133,24 +132,6 @@ function topUpAnalyticsTimeSeries(analytics: Record<string, GameAnalytics>) {
   }
   return result
 }
-
-export const useGameAnalyticsPatternsQuery = () =>
-  useQuery<GameAnalyticsPattern[]>({
-    queryKey: [QUERY_KEYS.useGameAnalyticsPatterns],
-    queryFn: () => window.api.store.get(STORE_KEYS.gameAnalyticsPatterns),
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  })
-
-export const useGameLogDirectoriesQuery = () =>
-  useQuery<string[]>({
-    queryKey: [QUERY_KEYS.useGameLogDirectories],
-    queryFn: () => window.api.store.get(STORE_KEYS.gameLogDirectories),
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  })
 
 export function Analytics() {
   const [analytics, setAnalytics] = useState<Record<string, GameAnalytics>>({})

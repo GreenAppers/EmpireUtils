@@ -23,9 +23,10 @@ import {
   Spinner,
   Text,
   Tooltip,
+  useToken,
 } from '@chakra-ui/react'
 import { AddIcon, EditIcon } from '@chakra-ui/icons'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import axios from 'axios'
 import React, { useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
@@ -40,72 +41,12 @@ import {
   mojangVersionManifests,
   QUERY_KEYS,
   setGameInstallModLoaderName,
-  STORE_KEYS,
   toggleGameInstallModeUrl,
 } from '../constants'
+import { useCreateGameInstallMutation, useGameInstallsQuery } from '../hooks/useStore'
 import { mods } from '../utils/mods'
 
 const defaultVersion = '1.20.6'
-
-function assertValue<X>(x: X | undefined | null, name?: string): X {
-  if (!x) throw new Error(`missing ${name}`)
-  return x
-}
-
-export const useGameInstallsQuery = () =>
-  useQuery<GameInstall[]>({
-    queryKey: [QUERY_KEYS.useGameInstalls],
-    queryFn: () => window.api.store.get(STORE_KEYS.gameInstalls),
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  })
-
-export const useCreateGameInstallMutation = (options?: {
-  callback?: (gameInstall?: GameInstall, error?: unknown) => void
-}) => {
-  const queryClient = useQueryClient()
-  return useMutation<GameInstall, unknown, Partial<GameInstall>>({
-    mutationFn: (newGameInstall) =>
-      window.api.createGameInstall({
-        ...newGameInstall,
-        name: assertValue(
-          newGameInstall.name,
-          'useCreateGameInstallMutation name'
-        ),
-        path: newGameInstall.path || '',
-        uuid: newGameInstall.uuid || '',
-        versionManifest: assertValue(
-          newGameInstall.versionManifest,
-          'useCreateGameInstallMutation versionManifest'
-        ),
-      }),
-    onSuccess: (gameInstall) => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.useGameInstalls] })
-      if (options?.callback) options.callback(gameInstall, undefined)
-    },
-    onError: (error) => {
-      if (options?.callback) options.callback(undefined, error)
-    },
-  })
-}
-
-export const useDeleteGameInstallMutation = (options?: {
-  callback?: (error?: unknown) => void
-}) => {
-  const queryClient = useQueryClient()
-  return useMutation<boolean, unknown, GameInstall>({
-    mutationFn: (deleteGameInstall) =>
-      window.api.deleteGameInstall(deleteGameInstall),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.useGameInstalls] })
-      if (options?.callback) options.callback(undefined)
-    },
-    onError: (error) => {
-      if (options?.callback) options.callback(error)
-    },
-  })
-}
 
 export const useMojangVersionManifestsQuery = () =>
   useQuery<MojangVersionManifests>({
@@ -126,6 +67,7 @@ export function NewGameInstall(props: {
   isOpen: boolean
   onClose: () => void
 }) {
+  const [yellow100] = useToken('colors', ['yellow.100'])
   const [newInstall, setNewInstall] = useState<Partial<GameInstall>>(
     props.existingInstall ?? {
       name: '',
@@ -174,10 +116,15 @@ export function NewGameInstall(props: {
   ])
 
   return (
-    <Modal isOpen={props.isOpen} onClose={props.onClose}>
+    <Modal colorScheme="yellow" isOpen={props.isOpen} onClose={props.onClose}>
       <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>
+      <ModalContent
+        color="chakra-body-text"
+        bgImage="app-file://images/icons/dstiles.png"
+        bgSize={64}
+        border={`${yellow100} 2px solid`}
+      >
+        <ModalHeader color={yellow100} bgColor="rgba(0, 0, 0, 0.3)">
           {props.existingInstall ? 'Update' : 'New'} Install
         </ModalHeader>
         <ModalCloseButton />
@@ -192,7 +139,7 @@ export function NewGameInstall(props: {
             <Spinner />
           </ModalBody>
         ) : (
-          <ModalBody>
+          <ModalBody bgColor="rgba(0, 0, 0, 0.6)">
             <FormControl>
               <FormLabel>Version</FormLabel>
               <Select
@@ -264,10 +211,11 @@ export function NewGameInstall(props: {
             )}
           </ModalBody>
         )}
-        <ModalFooter>
+        <ModalFooter bgColor="rgba(0, 0, 0, 0.3)">
           {versionManifests.isSuccess &&
             !createGameInstallMutation.isPending && (
               <Button
+                color={yellow100}
                 mr={3}
                 onClick={() => createGameInstallMutation.mutate(newInstall)}
               >
@@ -286,6 +234,7 @@ export function LaunchGameInstall(props: {
   install: GameInstall
   onClose: () => void
 }) {
+  const [purple100] = useToken('colors', ['purple.100'])
   useEffect(() => {
     if (!props.isOpen || !props.launchId) return
     const handle = window.api.launchGameInstall(
@@ -301,14 +250,23 @@ export function LaunchGameInstall(props: {
   return (
     <Modal isOpen={props.isOpen} onClose={props.onClose}>
       <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Launching {props.install.name}</ModalHeader>
+      <ModalContent
+        color="chakra-body-text"
+        bgImage="app-file://images/icons/obsidian.png"
+        bgSize={64}
+        border={`${purple100} 2px solid`}
+      >
+        <ModalHeader bgColor="rgba(0, 0, 0, 0.3)" color={purple100}>
+          Launching {props.install.name}
+        </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <Spinner />
         </ModalBody>
-        <ModalFooter>
-          <Button onClick={props.onClose}>Close</Button>
+        <ModalFooter bgColor="rgba(0, 0, 0, 0.3)">
+          <Button color={purple100} onClick={props.onClose}>
+            Close
+          </Button>
         </ModalFooter>
       </ModalContent>
     </Modal>

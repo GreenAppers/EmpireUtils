@@ -332,7 +332,7 @@ export function PieRayHelper() {
           </Thead>
           <Tbody>
             {foundX && foundZ && (
-              <Tr _hover={{ backgroundColor: 'yellow.50' }}>
+              <Tr _hover={{ backgroundColor: 'yellow.900' }}>
                 <Td>
                   <Icon as={StarIcon} color="yellow.300" marginX="5px" />
                 </Td>
@@ -345,7 +345,7 @@ export function PieRayHelper() {
               </Tr>
             )}
             {samples.map((corner, i) => (
-              <Tr key={i} _hover={{ backgroundColor: 'blue.50' }}>
+              <Tr key={i} _hover={{ backgroundColor: 'blue.900' }}>
                 <Td>
                   <Icon as={CheckIcon} color="green.500" marginX="5px" />
                 </Td>
