@@ -120,8 +120,8 @@ app.on('ready', () => {
     CHANNELS.launchGameInstall,
     async (_event, launchId: string, gameInstall: GameInstall) => {
       const channel = LAUNCH_CHANNEL(launchId)
-      launchInstall(launchId, gameInstall, authProvider, store, (update) => {
-        mainWindow?.webContents.send(channel, update)
+      launchInstall(launchId, gameInstall, authProvider, store, (message) => {
+        mainWindow?.webContents.send(channel, message)
       }).catch((error) => log.error('launchGameInstall error', error))
       return true
     }

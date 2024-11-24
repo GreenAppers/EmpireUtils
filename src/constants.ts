@@ -258,6 +258,10 @@ export const CHANNELS = {
   readGameLogs: 'read-game-logs',
 }
 
+export const LAUNCH_STATUS = {
+  finished: 'finished',
+}
+
 export const LAUNCH_CHANNEL = (uuid: string) => `launch-game-install-${uuid}`
 
 export const findVersionManifest = (
@@ -324,4 +328,13 @@ export const updateVersionDetailsLibrary = (
     }
   }
   versionDetails.libraries.push(newLibrary)
+}
+
+export const removeProperty = <X extends Record<string, unknown>>(
+  x: X,
+  key: string
+) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { [key]: _removed, ...rest } = x
+  return rest
 }

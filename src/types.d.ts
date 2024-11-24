@@ -25,6 +25,12 @@ interface GameLogLine {
   source: string
 }
 
+interface LaunchStatusMessage {
+  message?: string
+  processId?: number
+  status?: string
+}
+
 interface PieRaySample {
   chunk: Chunk
   direction?: ChunkDirection

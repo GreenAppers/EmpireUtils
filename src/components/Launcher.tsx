@@ -1,14 +1,10 @@
 import {
   Box,
   Button,
-  Checkbox,
   Flex,
-  FormControl,
-  FormLabel,
   Heading,
   IconButton,
   Image,
-  Input,
   List,
   ListItem,
   Modal,
@@ -18,234 +14,62 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Select,
   Spacer,
   Spinner,
   Text,
   Tooltip,
   useToken,
 } from '@chakra-ui/react'
-import { AddIcon, EditIcon } from '@chakra-ui/icons'
-import { useQuery } from '@tanstack/react-query'
-import axios from 'axios'
-import React, { useEffect, useState } from 'react'
+import { AddIcon, EditIcon, ViewIcon } from '@chakra-ui/icons'
+import React, { useEffect, useRef, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 
 import {
-  findVersionManifest,
   GameInstall,
   getGameInstallIsHacked,
   getGameInstalModLoaderName,
+  LAUNCH_STATUS,
   ModLoaderName,
-  MojangVersionManifests,
-  mojangVersionManifests,
-  QUERY_KEYS,
-  setGameInstallModLoaderName,
-  toggleGameInstallModeUrl,
+  removeProperty,
 } from '../constants'
-import { useCreateGameInstallMutation, useGameInstallsQuery } from '../hooks/useStore'
-import { mods } from '../utils/mods'
+import { useGameInstallsQuery } from '../hooks/useStore'
+import { NewGameInstall } from './NewGameInstall'
 
-const defaultVersion = '1.20.6'
-
-export const useMojangVersionManifestsQuery = () =>
-  useQuery<MojangVersionManifests>({
-    queryKey: [QUERY_KEYS.useMojangVersionManifests],
-    queryFn: async () => {
-      const { data } = await axios.get(
-        'https://launchermeta.mojang.com/mc/game/version_manifest.json'
-      )
-      return mojangVersionManifests.parse(data)
-    },
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  })
-
-export function NewGameInstall(props: {
-  existingInstall?: GameInstall
-  isOpen: boolean
-  onClose: () => void
-}) {
-  const [yellow100] = useToken('colors', ['yellow.100'])
-  const [newInstall, setNewInstall] = useState<Partial<GameInstall>>(
-    props.existingInstall ?? {
-      name: '',
-      path: '',
-      versionManifest: undefined,
-    }
-  )
-
-  const updateNewInstallVersionManifest = (version: string) => {
-    const newVersionManifest = findVersionManifest(
-      versionManifests.data,
-      version
-    )
-    if (!newVersionManifest) return
-    setNewInstall((prev) => ({
-      ...prev,
-      name:
-        !prev.name || prev.name === prev.versionManifest?.id
-          ? newVersionManifest.id
-          : prev.name,
-      versionManifest: newVersionManifest,
-    }))
-  }
-
-  const versionManifests = useMojangVersionManifestsQuery()
-  const createGameInstallMutation = useCreateGameInstallMutation({
-    callback: props.onClose,
-  })
-
-  useEffect(() => {
-    if (!newInstall.versionManifest?.id && versionManifests.isSuccess) {
-      const defaultVersionManifest = findVersionManifest(
-        versionManifests.data,
-        defaultVersion
-      )
-      updateNewInstallVersionManifest(
-        defaultVersionManifest
-          ? defaultVersion
-          : versionManifests.data.latest.release
-      )
-    }
-  }, [
-    newInstall.versionManifest?.id,
-    versionManifests.isSuccess,
-    versionManifests.data,
-  ])
-
-  return (
-    <Modal colorScheme="yellow" isOpen={props.isOpen} onClose={props.onClose}>
-      <ModalOverlay />
-      <ModalContent
-        color="chakra-body-text"
-        bgImage="app-file://images/icons/dstiles.png"
-        bgSize={64}
-        border={`${yellow100} 2px solid`}
-      >
-        <ModalHeader color={yellow100} bgColor="rgba(0, 0, 0, 0.3)">
-          {props.existingInstall ? 'Update' : 'New'} Install
-        </ModalHeader>
-        <ModalCloseButton />
-        {versionManifests.isError ? (
-          <ModalBody>
-            Error loading version manifests
-            {versionManifests.error.message}
-          </ModalBody>
-        ) : !versionManifests.isSuccess ||
-          createGameInstallMutation.isPending ? (
-          <ModalBody>
-            <Spinner />
-          </ModalBody>
-        ) : (
-          <ModalBody bgColor="rgba(0, 0, 0, 0.6)">
-            <FormControl>
-              <FormLabel>Version</FormLabel>
-              <Select
-                value={newInstall.versionManifest?.id}
-                onChange={(event) =>
-                  updateNewInstallVersionManifest(event.target.value)
-                }
-              >
-                {versionManifests.data.versions.map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.id}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl>
-              <FormLabel>Name</FormLabel>
-              <Input
-                type="name"
-                value={newInstall.name}
-                onChange={(event) =>
-                  setNewInstall((prev) => ({
-                    ...prev,
-                    name: event.target.value,
-                  }))
-                }
-              />
-            </FormControl>
-            <FormControl>
-              <FormLabel>Mod loader</FormLabel>
-              <Select
-                value={getGameInstalModLoaderName(newInstall)}
-                onChange={(event) =>
-                  setNewInstall((prev) =>
-                    setGameInstallModLoaderName(prev, event.target.value)
-                  )
-                }
-              >
-                {Object.keys(ModLoaderName).map((x) => (
-                  <option key={x} value={x}>
-                    {x}
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-            {newInstall.fabricLoaderVersion && (
-              <List marginTop="1rem">
-                {Object.entries(
-                  mods[`${newInstall?.versionManifest?.id}-fabric`] || {}
-                ).map(([name, url]) => (
-                  <ListItem key={name}>
-                    <Checkbox
-                      isChecked={newInstall?.mods?.includes(url)}
-                      onChange={(e) =>
-                        setNewInstall((prev) =>
-                          toggleGameInstallModeUrl(
-                            prev,
-                            url,
-                            !!e.target.checked
-                          )
-                        )
-                      }
-                    >
-                      {name}
-                    </Checkbox>
-                  </ListItem>
-                ))}
-              </List>
-            )}
-          </ModalBody>
-        )}
-        <ModalFooter bgColor="rgba(0, 0, 0, 0.3)">
-          {versionManifests.isSuccess &&
-            !createGameInstallMutation.isPending && (
-              <Button
-                color={yellow100}
-                mr={3}
-                onClick={() => createGameInstallMutation.mutate(newInstall)}
-              >
-                {props.existingInstall ? 'Update' : 'Create'}
-              </Button>
-            )}
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
-  )
+interface RunningLaunch {
+  install: GameInstall
+  processId?: number
+  show: boolean
 }
 
-export function LaunchGameInstall(props: {
+export function LaunchedGame(props: {
   isOpen: boolean
   launchId: string
   install: GameInstall
   onClose: () => void
+  onFinished: () => void
+  onProcessId: (processId: number) => void
 }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const textRef = useRef<HTMLParagraphElement>(null)
   const [purple100] = useToken('colors', ['purple.100'])
+
   useEffect(() => {
-    if (!props.isOpen || !props.launchId) return
+    if (!props.launchId) return
     const handle = window.api.launchGameInstall(
       props.launchId,
       props.install,
-      (text) => {
-        console.log(props.launchId, text)
+      (message) => {
+        if (message.message) {
+          if (textRef.current) textRef.current.textContent += message.message
+          if (containerRef.current)
+            containerRef.current.scrollTop = containerRef.current.scrollHeight
+        }
+        if (message.processId) props.onProcessId(message.processId)
+        if (message.status === LAUNCH_STATUS.finished) props.onFinished()
       }
     )
     return () => window.api.removeListener(handle)
-  }, [props.isOpen, props.launchId])
+  }, [props.launchId])
 
   return (
     <Modal isOpen={props.isOpen} onClose={props.onClose}>
@@ -255,6 +79,8 @@ export function LaunchGameInstall(props: {
         bgImage="app-file://images/icons/obsidian.png"
         bgSize={64}
         border={`${purple100} 2px solid`}
+        minWidth="fit-content"
+        height="fit-content"
       >
         <ModalHeader bgColor="rgba(0, 0, 0, 0.3)" color={purple100}>
           Launching {props.install.name}
@@ -262,6 +88,12 @@ export function LaunchGameInstall(props: {
         <ModalCloseButton />
         <ModalBody>
           <Spinner />
+          <div
+            ref={containerRef}
+            style={{ height: '400px', width: '800px', overflow: 'auto' }}
+          >
+            <p ref={textRef} />
+          </div>
         </ModalBody>
         <ModalFooter bgColor="rgba(0, 0, 0, 0.3)">
           <Button color={purple100} onClick={props.onClose}>
@@ -279,9 +111,17 @@ export function Launcher() {
   const [updateExistingInstall, setUpdateExistingInstall] = useState<
     GameInstall | undefined
   >(undefined)
-  const [launched, setLaunched] = useState<
-    Record<string, { install: GameInstall; show: boolean }>
-  >({})
+  const [running, setRunning] = useState<Record<string, RunningLaunch>>({})
+
+  const setRunningProps = (id: string, props: Partial<RunningLaunch>) =>
+    setRunning((prev) => {
+      const prevLaunch = prev[id]
+      if (!prevLaunch) return prev
+      return {
+        ...prev,
+        [id]: { ...prevLaunch, ...props },
+      }
+    })
 
   return (
     <>
@@ -315,49 +155,48 @@ export function Launcher() {
         />
       )}
 
-      {Object.entries(launched).map(
-        ([id, { install, show }]) =>
-          show && (
-            <LaunchGameInstall
-              key={id}
-              launchId={id}
-              install={install}
-              isOpen={show}
-              onClose={() =>
-                setLaunched((prev) => ({
-                  ...prev,
-                  [id]: { ...prev[id], show: false },
-                }))
-              }
-            />
-          )
-      )}
+      {Object.entries(running).map(([id, { install, show }]) => (
+        <LaunchedGame
+          key={id}
+          launchId={id}
+          install={install}
+          isOpen={show}
+          onClose={() => setRunningProps(id, { show: false })}
+          onFinished={() => setRunning((prev) => removeProperty(prev, id))}
+          onProcessId={(processId) => setRunningProps(id, { processId })}
+        />
+      ))}
 
       <List marginTop="1rem">
         {gameInstalls.isSuccess &&
           gameInstalls.data.map((install, i) => (
             <ListItem key={install.name} height="5rem">
-              <Flex alignItems="center">
-                <IconButton
-                  aria-label="gameInstall"
-                  marginRight="1rem"
-                  width="4rem"
-                  icon={
-                    <Image
-                      src={
-                        i % 2 === 0
-                          ? 'app-file://images/icons/grassblock.png'
-                          : 'app-file://images/icons/creeper.png'
-                      }
-                    />
-                  }
-                  onClick={() =>
-                    setLaunched((prev) => ({
-                      ...prev,
-                      [uuidv4()]: { install: install, show: true },
-                    }))
-                  }
-                />
+              <Flex
+                alignItems="center"
+                _hover={{ backgroundColor: 'rgba(120, 120, 120, 0.3)' }}
+              >
+                <Tooltip label={`Launch ${install.name}`}>
+                  <IconButton
+                    aria-label="gameInstall"
+                    marginRight="1rem"
+                    width="4rem"
+                    icon={
+                      <Image
+                        src={
+                          i % 2 === 0
+                            ? 'app-file://images/icons/grassblock.png'
+                            : 'app-file://images/icons/creeper.png'
+                        }
+                      />
+                    }
+                    onClick={() =>
+                      setRunning((prev) => ({
+                        ...prev,
+                        [uuidv4()]: { install: install, show: true },
+                      }))
+                    }
+                  />
+                </Tooltip>
                 <Box>
                   <Heading as="h5" size="sm">
                     <Flex>
@@ -384,6 +223,25 @@ export function Launcher() {
                   {install.uuid}
                 </Box>
                 <Spacer />
+                {Object.entries(running)
+                  .filter(([, v]) => v.install.uuid === install.uuid)
+                  .map(([id, { install, processId }]) => {
+                    const label =
+                      (processId ? `Pid ${processId} ` : `Running `) +
+                      install.name
+                    return (
+                      <Box>
+                        <Tooltip label={label}>
+                          <IconButton
+                            aria-label={label}
+                            icon={<ViewIcon />}
+                            onClick={() => setRunningProps(id, { show: true })}
+                          />
+                        </Tooltip>
+                        &nbsp;
+                      </Box>
+                    )
+                  })}
                 <Box>
                   <Tooltip label={`Edit ${install.name}`}>
                     <IconButton

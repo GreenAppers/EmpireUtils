@@ -37,10 +37,19 @@ export const newStore = () =>
     serialize: (value) =>
       JSON.stringify(
         value,
-        (_, x) => (x instanceof RegExp ? x.toString().slice(1,-1) : x),
+        (_, x) => (x instanceof RegExp ? x.toString().slice(1, -1) : x),
         '\t'
       ),
   })
+
+export const getActiveGameAccount = (store: Store<StoreSchema>) =>
+  store
+    .get<string, GameAccount[]>(STORE_KEYS.gameAccounts)
+    .find(
+      (x) =>
+        x.active &&
+        new Date().getTime() < new Date(x.minecraftToken.NotAfter).getTime()
+    ) || null
 
 export const updateGameAccount = (
   store: Store<StoreSchema>,

@@ -4,7 +4,7 @@
 import { contextBridge, ipcRenderer } from 'electron/renderer'
 
 import { CHANNELS, GameInstall, LAUNCH_CHANNEL } from './constants'
-import type { GameLogLine } from './types'
+import type { GameLogLine, LaunchStatusMessage } from './types'
 
 export type Listener<Args extends unknown[]> = (
   event: Electron.IpcRendererEvent,
@@ -25,14 +25,15 @@ export const api = {
   launchGameInstall: (
     launchId: string,
     gameInstall: GameInstall,
-    callback: (text: string) => void
-  ): ListenHandle<[string]> => {
+    callback: (message: LaunchStatusMessage) => void
+  ): ListenHandle<[LaunchStatusMessage]> => {
     ipcRenderer
       .invoke(CHANNELS.launchGameInstall, launchId, gameInstall)
       .catch((error) =>
         console.log(`${CHANNELS.launchGameInstall} error`, error)
       )
-    const listener: Listener<[string]> = (_event, text) => callback(text)
+    const listener: Listener<[LaunchStatusMessage]> = (_event, message) =>
+      callback(message)
     const channel = LAUNCH_CHANNEL(launchId)
     ipcRenderer.on(channel, listener)
     return { channel, listener }
@@ -59,7 +60,8 @@ export const api = {
     ipcRenderer
       .invoke(CHANNELS.readGameLogs, gameLogDirectories, beginDate, endDate)
       .catch((error) => console.log(`${CHANNELS.readGameLogs} error`, error))
-    const listener: Listener<[GameLogLine[]]> = (_event, lines) => callback(lines)
+    const listener: Listener<[GameLogLine[]]> = (_event, lines) =>
+      callback(lines)
     ipcRenderer.on(CHANNELS.readGameLogs, listener)
     return { channel: CHANNELS.readGameLogs, listener }
   },

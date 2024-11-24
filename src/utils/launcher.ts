@@ -4,17 +4,20 @@ import { app } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import pSettle from 'p-settle'
+import readline from 'readline'
 import { v4 as uuidv4 } from 'uuid'
 
 import {
   fabricVersionDetails,
   GameInstall,
+  LAUNCH_STATUS,
   mojangVersionDetails,
   parseLibraryName,
   updateVersionDetailsLibrary,
 } from '../constants'
 import { AuthProvider } from '../msal/AuthProvider'
-import { Store, StoreSchema } from '../store'
+import { getActiveGameAccount, Store, StoreSchema } from '../store'
+import type { LaunchStatusMessage } from '../types'
 import { loginToMinecraft } from './auth'
 import {
   checkFileExists,
@@ -138,7 +141,6 @@ export async function updateInstall(install: GameInstall) {
         downloadIfMissing(url, path.join(librariesPath, jarPath))
       )
     }
-    // https://github.com/FabricMC/fabric/releases/download/0.107.0%2B1.21.3/fabric-api-0.107.0+1.21.3.jar
     for (const argument of fabricDetails.arguments.jvm) {
       versionDetails.arguments.jvm.push(argument)
     }
@@ -165,7 +167,7 @@ export async function launchInstall(
   install: GameInstall,
   authProvider: AuthProvider,
   store: Store<StoreSchema>,
-  callback: (updated: string) => void
+  callback: (message: LaunchStatusMessage) => void
 ) {
   try {
     if (launchRunning[launchId]) {
@@ -174,7 +176,7 @@ export async function launchInstall(
     }
     launchRunning[launchId] = install
 
-    callback('Updating install')
+    callback({ message: 'Updating install' })
     const versionDetails = await updateInstall(install)
 
     const osArch = getOsArch()
@@ -198,19 +200,24 @@ export async function launchInstall(
       classpath: '',
     }
 
-    callback('Authenticating')
+    callback({ message: 'Authenticating' })
     try {
-      const microsoftAuth = await authProvider.login()
-      const gameAccount = await loginToMinecraft(
-        microsoftAuth?.accessToken,
-        store
-      )
+      let gameAccount = getActiveGameAccount(store)
+      if (gameAccount) {
+        callback({
+          message: `Found cached account: ${gameAccount.profile.name}`,
+        })
+      } else {
+        const microsoftAuth = await authProvider.login()
+        gameAccount = await loginToMinecraft(microsoftAuth?.accessToken, store)
+        callback({ message: `Logged in as: ${gameAccount.profile.name}` })
+      }
       template.auth_access_token = gameAccount.yggdrasilToken.access_token
       template.auth_player_name = gameAccount.profile.name
       template.auth_uuid = gameAccount.profile.id
       template.user_type = 'msa'
     } catch (error) {
-      callback('Error authenticating: ' + error.toString())
+      callback({ message: 'Error authenticating: ' + error.toString() })
     }
 
     const appendClasspath = (path: string) =>
@@ -236,26 +243,32 @@ export async function launchInstall(
       command
     )
     command = filterBlankArguments(command)
-    callback('Launching install: ' + command.join(' '))
+    callback({ message: 'Launching install: ' + command.join(' ') })
 
     const child = spawn(command[0], command.slice(1), {
       cwd: install.path,
     })
-    child.stdout.on('data', (data) => callback(data.toString()))
-    child.stderr.on('data', (data) => callback(data.toString()))
+    child.stdout.on('data', (data) => callback({ message: data.toString() }))
+    child.stderr.on('data', (data) => callback({ message: data.toString() }))
     child.on('error', (err: Error) => {
       throw new Error(`launch:${launchId} failed to start! ${err}`)
     })
     child.on('exit', (code: number) => {
       if (code === 0) {
-        callback(`launch:${launchId} exited`)
+        callback({
+          message: `launch:${launchId} exited`,
+          status: LAUNCH_STATUS.finished,
+        })
       } else {
-        callback(`launch:${launchId} exited with code ${code}`)
+        callback({
+          message: `launch:${launchId} exited with code ${code}`,
+          status: LAUNCH_STATUS.finished,
+        })
       }
     })
-    callback(`Complete: ${child.pid}`)
+    callback({ message: `Complete: ${child.pid}` })
   } catch (error) {
-    callback('Error launching: ' + error.toString())
+    callback({ message: 'Error launching: ' + error.toString() })
     throw error
   } finally {
     delete launchRunning[launchId]

@@ -114,7 +114,9 @@ export function App() {
       <TabPanels>
         <TabPanel>{selectedTab === 0 && <Analytics />}</TabPanel>
         <TabPanel>{selectedTab === 1 && <PieRayHelper />}</TabPanel>
-        <TabPanel>{selectedTab === 2 && <Launcher />}</TabPanel>
+        <TabPanel>
+          <Launcher />
+        </TabPanel>
         <TabPanel></TabPanel>
         <TabPanel>{selectedTab === 4 && <Waypoints />}</TabPanel>
       </TabPanels>
