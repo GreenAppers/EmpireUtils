@@ -1,6 +1,11 @@
 import { CSSProperties, useEffect, useRef } from 'react'
+import { MinecraftProfile, minecraftProfileState } from '../constants'
+import { Tooltip } from '@chakra-ui/react'
 
-export function PlayerHead(props: { headSize?: number; skinUrl?: string }) {
+export function PlayerHead(props: {
+  headSize?: number
+  profile?: MinecraftProfile
+}) {
   const headSize = props.headSize || 120
   const halfHeadSize = headSize / 2
   const helmExtraSize = headSize / 24
@@ -191,162 +196,176 @@ export function PlayerHead(props: { headSize?: number; skinUrl?: string }) {
         <img
           alt="Player Skin"
           ref={imgRef}
-          src={props.skinUrl}
+          src={
+            props.profile?.skins?.find(
+              (x) => x.state === minecraftProfileState.Values.ACTIVE
+            )?.url
+          }
           style={{ display: 'none' }}
         />
 
-        {/* Head is made from six faces each for Head and Helm */}
-        <div
-          ref={divHeadRef}
-          style={{
-            top: '20px',
-            width: '100%',
-            height: '100%',
-            position: 'absolute',
-            transformStyle: 'preserve-3d',
-            transform: `translateZ(-${halfHeadSize}px) rotateY(0deg) rotateX(0deg)`,
-          }}
-        >
-          {/* Head (1/6) Front face */}
+        <Tooltip label={props.profile?.name}>
+          {/* Head is made from six faces each for Head and Helm */}
           <div
+            ref={divHeadRef}
             style={{
-              ...headStyle,
-              transform: `translateZ(${halfHeadSize}px)`,
+              top: '20px',
+              width: '100%',
+              height: '100%',
+              position: 'absolute',
+              transformStyle: 'preserve-3d',
+              transform: `translateZ(-${halfHeadSize}px) rotateY(0deg) rotateX(0deg)`,
             }}
           >
-            <canvas height={headSize} width={headSize} ref={canvasFrontRef} />
-          </div>
+            {/* Head (1/6) Front face */}
+            <div
+              style={{
+                ...headStyle,
+                transform: `translateZ(${halfHeadSize}px)`,
+              }}
+            >
+              <canvas height={headSize} width={headSize} ref={canvasFrontRef} />
+            </div>
 
-          {/* Head (2/6) Back face */}
-          <div
-            style={{
-              ...headStyle,
-              transform: `rotateX(-180deg) translateZ(${halfHeadSize}px) rotateZ(180deg)`,
-            }}
-          >
-            <canvas height={headSize} width={headSize} ref={canvasBackRef} />
-          </div>
+            {/* Head (2/6) Back face */}
+            <div
+              style={{
+                ...headStyle,
+                transform: `rotateX(-180deg) translateZ(${halfHeadSize}px) rotateZ(180deg)`,
+              }}
+            >
+              <canvas height={headSize} width={headSize} ref={canvasBackRef} />
+            </div>
 
-          {/* Head (3/6) Left face */}
-          <div
-            style={{
-              ...headStyle,
-              transform: `rotateY(-90deg) translateZ(${halfHeadSize}px)`,
-            }}
-          >
-            <canvas height={headSize} width={headSize} ref={canvasLeftRef} />
-          </div>
+            {/* Head (3/6) Left face */}
+            <div
+              style={{
+                ...headStyle,
+                transform: `rotateY(-90deg) translateZ(${halfHeadSize}px)`,
+              }}
+            >
+              <canvas height={headSize} width={headSize} ref={canvasLeftRef} />
+            </div>
 
-          {/* Head (4/6) Right face */}
-          <div
-            style={{
-              ...headStyle,
-              transform: `rotateY(90deg) translateZ(${halfHeadSize}px)`,
-            }}
-          >
-            <canvas height={headSize} width={headSize} ref={canvasRightRef} />
-          </div>
+            {/* Head (4/6) Right face */}
+            <div
+              style={{
+                ...headStyle,
+                transform: `rotateY(90deg) translateZ(${halfHeadSize}px)`,
+              }}
+            >
+              <canvas height={headSize} width={headSize} ref={canvasRightRef} />
+            </div>
 
-          {/* Head (5/6) Top face */}
-          <div
-            style={{
-              ...headStyle,
-              transform: `rotateX(90deg) translateZ(${halfHeadSize}px)`,
-            }}
-          >
-            <canvas height={headSize} width={headSize} ref={canvasTopRef} />
-          </div>
+            {/* Head (5/6) Top face */}
+            <div
+              style={{
+                ...headStyle,
+                transform: `rotateX(90deg) translateZ(${halfHeadSize}px)`,
+              }}
+            >
+              <canvas height={headSize} width={headSize} ref={canvasTopRef} />
+            </div>
 
-          {/* Head (6/6) Bottom face */}
-          <div
-            style={{
-              ...headStyle,
-              transform: `rotateX(-90deg) translateZ(${halfHeadSize}px) rotateZ(180deg)`,
-            }}
-          >
-            <canvas height={headSize} width={headSize} ref={canvasBottomRef} />
-          </div>
+            {/* Head (6/6) Bottom face */}
+            <div
+              style={{
+                ...headStyle,
+                transform: `rotateX(-90deg) translateZ(${halfHeadSize}px) rotateZ(180deg)`,
+              }}
+            >
+              <canvas
+                height={headSize}
+                width={headSize}
+                ref={canvasBottomRef}
+              />
+            </div>
 
-          {/* Helm (1/6) Front face */}
-          <div
-            style={{
-              ...helmStyle,
-              transform: `translateZ(${halfHelmSize}px)`,
-            }}
-          >
-            <canvas
-              height={helmSize}
-              width={helmSize}
-              ref={canvasHelmFrontRef}
-            />
-          </div>
+            {/* Helm (1/6) Front face */}
+            <div
+              style={{
+                ...helmStyle,
+                transform: `translateZ(${halfHelmSize}px)`,
+              }}
+            >
+              <canvas
+                height={helmSize}
+                width={helmSize}
+                ref={canvasHelmFrontRef}
+              />
+            </div>
 
-          {/* Helm (2/6) Back face */}
-          <div
-            style={{
-              ...helmStyle,
-              transform: `rotateX(-180deg) translateZ(${halfHelmSize}px) rotateZ(180deg)`,
-            }}
-          >
-            <canvas
-              height={helmSize}
-              width={helmSize}
-              ref={canvasHelmBackRef}
-            />
-          </div>
+            {/* Helm (2/6) Back face */}
+            <div
+              style={{
+                ...helmStyle,
+                transform: `rotateX(-180deg) translateZ(${halfHelmSize}px) rotateZ(180deg)`,
+              }}
+            >
+              <canvas
+                height={helmSize}
+                width={helmSize}
+                ref={canvasHelmBackRef}
+              />
+            </div>
 
-          {/* Helm (3/6) Left face */}
-          <div
-            style={{
-              ...helmStyle,
-              transform: `rotateY(-90deg) translateZ(${halfHelmSize}px)`,
-            }}
-          >
-            <canvas
-              height={helmSize}
-              width={helmSize}
-              ref={canvasHelmLeftRef}
-            />
-          </div>
+            {/* Helm (3/6) Left face */}
+            <div
+              style={{
+                ...helmStyle,
+                transform: `rotateY(-90deg) translateZ(${halfHelmSize}px)`,
+              }}
+            >
+              <canvas
+                height={helmSize}
+                width={helmSize}
+                ref={canvasHelmLeftRef}
+              />
+            </div>
 
-          {/* Helm (4/6) Right face */}
-          <div
-            style={{
-              ...helmStyle,
-              transform: `rotateY(90deg) translateZ(${halfHelmSize}px)`,
-            }}
-          >
-            <canvas
-              height={helmSize}
-              width={helmSize}
-              ref={canvasHelmRightRef}
-            />
-          </div>
+            {/* Helm (4/6) Right face */}
+            <div
+              style={{
+                ...helmStyle,
+                transform: `rotateY(90deg) translateZ(${halfHelmSize}px)`,
+              }}
+            >
+              <canvas
+                height={helmSize}
+                width={helmSize}
+                ref={canvasHelmRightRef}
+              />
+            </div>
 
-          {/* Helm (5/6) Top face */}
-          <div
-            style={{
-              ...helmStyle,
-              transform: `rotateX(90deg) translateZ(${halfHelmSize}px)`,
-            }}
-          >
-            <canvas height={helmSize} width={helmSize} ref={canvasHelmTopRef} />
-          </div>
+            {/* Helm (5/6) Top face */}
+            <div
+              style={{
+                ...helmStyle,
+                transform: `rotateX(90deg) translateZ(${halfHelmSize}px)`,
+              }}
+            >
+              <canvas
+                height={helmSize}
+                width={helmSize}
+                ref={canvasHelmTopRef}
+              />
+            </div>
 
-          {/* Helm (6/6) Bottom face */}
-          <div
-            style={{
-              ...helmStyle,
-              transform: `rotateX(-90deg) translateZ(${halfHelmSize}px) rotateZ(180deg)`,
-            }}
-          >
-            <canvas
-              height={helmSize}
-              width={helmSize}
-              ref={canvasHelmBottomRef}
-            />
+            {/* Helm (6/6) Bottom face */}
+            <div
+              style={{
+                ...helmStyle,
+                transform: `rotateX(-90deg) translateZ(${halfHelmSize}px) rotateZ(180deg)`,
+              }}
+            >
+              <canvas
+                height={helmSize}
+                width={helmSize}
+                ref={canvasHelmBottomRef}
+              />
+            </div>
           </div>
-        </div>
+        </Tooltip>
       </section>
     </div>
   )

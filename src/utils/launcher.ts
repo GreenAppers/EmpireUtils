@@ -2,6 +2,7 @@ import axios from 'axios'
 import { spawn } from 'child_process'
 import { app } from 'electron'
 import fs from 'fs'
+import { glob } from 'glob'
 import path from 'path'
 import pSettle from 'p-settle'
 import readline from 'readline'
@@ -35,6 +36,9 @@ import {
 
 const launchRunning: Record<string, GameInstall> = {}
 
+export const getInstallsPath = () =>
+  path.join(app.getPath('userData'), 'installs')
+
 export const getLibrariesPath = () =>
   path.join(app.getPath('userData'), 'libraries')
 
@@ -44,11 +48,21 @@ export const getClientJarPath = (version: string) =>
     `com/mojang/minecraft/${version}/minecraft-${version}-client.jar`
   )
 
+export const getInstallIconPath = (install: GameInstall) =>
+  path.join(install.path, 'icon.png')
+
 export const getMinecraftVersionJsonPath = (install: GameInstall) =>
   path.join(install.path, `${install.versionManifest.id}.json`)
 
 export const getFabricVersionJsonPath = (install: GameInstall) =>
   path.join(install.path, `fabric-${install.fabricLoaderVersion}.json`)
+
+export async function getRandomIcon() {
+  const icons = await glob(
+    path.join(app.getAppPath(), 'images', 'icons', '*.png')
+  )
+  return icons[Math.floor(Math.random() * icons.length)]
+}
 
 export async function setupFabricInstall(install: GameInstall) {
   if (!(await checkFileExists(getFabricVersionJsonPath(install)))) {
@@ -75,13 +89,20 @@ export async function setupInstall(install: GameInstall) {
     install.uuid = uuidv4()
   }
   if (!install.path) {
-    install.path = path.join(app.getPath('userData'), 'installs', install.uuid)
+    install.path = path.join(getInstallsPath(), install.uuid)
   }
   await ensureDirectory(install.path)
 
   const versionDetailsFilename = getMinecraftVersionJsonPath(install)
   if (!(await checkFileExists(versionDetailsFilename))) {
     await download(install.versionManifest.url, versionDetailsFilename)
+  }
+
+  if (!(await checkFileExists(getInstallIconPath(install)))) {
+    await fs.promises.copyFile(
+      await getRandomIcon(),
+      getInstallIconPath(install)
+    )
   }
 
   if (install.fabricLoaderVersion) await setupFabricInstall(install)
@@ -200,6 +221,7 @@ export async function launchInstall(
       classpath: '',
     }
 
+    // Get acess token
     callback({ message: 'Authenticating' })
     try {
       let gameAccount = getActiveGameAccount(store)
@@ -220,34 +242,68 @@ export async function launchInstall(
       callback({ message: 'Error authenticating: ' + error.toString() })
     }
 
+    // Prepare Java classpath
     const appendClasspath = (path: string) =>
       (template.classpath += `${template.classpath.length ? ':' : ''}${path}`)
     for (const library of versionDetails.libraries) {
       if (!allowRules({ osName, osArch }, library.rules)) continue
       appendClasspath(path.join(librariesPath, library.downloads.artifact.path))
     }
+    if (install.wrapMainClass)
+      appendClasspath(
+        path.join(
+          librariesPath,
+          'com/greenappers/empirelauncher/1.0.0/empirelauncher-1.0.0.jar'
+        )
+      )
     appendClasspath(getClientJarPath(versionDetails.id))
 
-    let command = ['java']
+    // Prepare command line
+    let command = [
+      // '/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home/bin/java',
+      // '/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home/bin/java',
+      'java',
+    ]
+    switch (getOsName()) {
+      case 'osx':
+        command.push(
+          '-Xdock:icon=icon.png',
+          `-Xdock:name="EmpireUtils: ${install.name}"`,
+          '-XstartOnFirstThread'
+        )
+        break
+    }
     applyArgumentsTemplate(
       { osName, osArch },
       versionDetails.arguments.jvm,
       template,
       command
     )
-    command.push(versionDetails.mainClass)
+    if (install.wrapMainClass) {
+      command.push('com.greenappers.empirelauncher.EmpireLauncher')
+    } else {
+      command.push(versionDetails.mainClass)
+    }
     applyArgumentsTemplate(
       { osName, osArch },
       versionDetails.arguments.game,
       template,
       command
     )
+    if (install.extraCommandlineArguments)
+      command.push(...install.extraCommandlineArguments)
     command = filterBlankArguments(command)
     callback({ message: 'Launching install: ' + command.join(' ') })
 
+    // Launch command line
     const child = spawn(command[0], command.slice(1), {
       cwd: install.path,
+      env: {
+        PATH: process.env.PATH,
+        EMPIRELAUNCHER_MAIN_CLASS: versionDetails.mainClass,
+      },
     })
+    if (child.pid) callback({ processId: child.pid })
     child.stdout.on('data', (data) => callback({ message: data.toString() }))
     child.stderr.on('data', (data) => callback({ message: data.toString() }))
     child.on('error', (err: Error) => {

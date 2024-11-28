@@ -200,7 +200,9 @@ export const gameInstall = z.object({
   uuid: z.string(),
   versionManifest: mojangVersionManifest,
   fabricLoaderVersion: z.optional(z.string()),
+  extraCommandlineArguments: z.optional(z.array(z.string())),
   mods: z.optional(z.array(z.string())),
+  wrapMainClass: z.optional(z.string()),
 })
 
 export const waypoint = z.object({

@@ -91,14 +91,9 @@ export function App() {
           </TabList>
           <Spacer />
           {gameAccount ? (
-            <PlayerHead
-              headSize={76}
-              skinUrl={
-                gameAccount.profile.skins?.find(
-                  (x) => x.state === minecraftProfileState.Values.ACTIVE
-                )?.url
-              }
-            />
+            <Tooltip label={gameAccount.profile.name}>
+              <PlayerHead headSize={76} profile={gameAccount.profile} />
+            </Tooltip>
           ) : (
             <Button
               variant="ghost"

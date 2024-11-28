@@ -42,9 +42,8 @@ interface RunningLaunch {
 }
 
 export function LaunchedGame(props: {
-  isOpen: boolean
   launchId: string
-  install: GameInstall
+  launched: RunningLaunch
   onClose: () => void
   onFinished: () => void
   onProcessId: (processId: number) => void
@@ -52,14 +51,16 @@ export function LaunchedGame(props: {
   const containerRef = useRef<HTMLDivElement>(null)
   const textRef = useRef<HTMLParagraphElement>(null)
   const [purple100] = useToken('colors', ['purple.100'])
+  const [status, setStatus] = useState<string>('Launching')
 
   useEffect(() => {
     if (!props.launchId) return
     const handle = window.api.launchGameInstall(
       props.launchId,
-      props.install,
+      props.launched.install,
       (message) => {
         if (message.message) {
+          if (message.message.includes('Setting user')) setStatus('Running')
           if (textRef.current) textRef.current.textContent += message.message
           if (containerRef.current)
             containerRef.current.scrollTop = containerRef.current.scrollHeight
@@ -72,7 +73,7 @@ export function LaunchedGame(props: {
   }, [props.launchId])
 
   return (
-    <Modal isOpen={props.isOpen} onClose={props.onClose}>
+    <Modal isOpen={props.launched.show} onClose={props.onClose}>
       <ModalOverlay />
       <ModalContent
         color="chakra-body-text"
@@ -83,7 +84,8 @@ export function LaunchedGame(props: {
         height="fit-content"
       >
         <ModalHeader bgColor="rgba(0, 0, 0, 0.3)" color={purple100}>
-          Launching {props.install.name}
+          {status} {props.launched.install.name}
+          {props.launched.processId ? `: Pid ${props.launched.processId}` : ''}
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
@@ -155,12 +157,11 @@ export function Launcher() {
         />
       )}
 
-      {Object.entries(running).map(([id, { install, show }]) => (
+      {Object.entries(running).map(([id, launched]) => (
         <LaunchedGame
           key={id}
           launchId={id}
-          install={install}
-          isOpen={show}
+          launched={launched}
           onClose={() => setRunningProps(id, { show: false })}
           onFinished={() => setRunning((prev) => removeProperty(prev, id))}
           onProcessId={(processId) => setRunningProps(id, { processId })}
@@ -169,8 +170,8 @@ export function Launcher() {
 
       <List marginTop="1rem">
         {gameInstalls.isSuccess &&
-          gameInstalls.data.map((install, i) => (
-            <ListItem key={install.name} height="5rem">
+          gameInstalls.data.map((install) => (
+            <ListItem key={install.uuid} height="5rem">
               <Flex
                 alignItems="center"
                 _hover={{ backgroundColor: 'rgba(120, 120, 120, 0.3)' }}
@@ -181,13 +182,7 @@ export function Launcher() {
                     marginRight="1rem"
                     width="4rem"
                     icon={
-                      <Image
-                        src={
-                          i % 2 === 0
-                            ? 'app-file://images/icons/grassblock.png'
-                            : 'app-file://images/icons/creeper.png'
-                        }
-                      />
+                      <Image src={`install-file://${install.uuid}/icon.png`} />
                     }
                     onClick={() =>
                       setRunning((prev) => ({
@@ -230,7 +225,7 @@ export function Launcher() {
                       (processId ? `Pid ${processId} ` : `Running `) +
                       install.name
                     return (
-                      <Box>
+                      <Box key={id}>
                         <Tooltip label={label}>
                           <IconButton
                             aria-label={label}
