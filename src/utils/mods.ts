@@ -1,4 +1,4 @@
-import { GameMod, GameShaderpack } from '../constants'
+import { GameMod } from '../constants'
 
 export const defaultFabricMods = [
   'fabric-api',
@@ -13,6 +13,8 @@ export const defaultFabricMods = [
   'sodium',
 ]
 
+export const defaultShaderpacks = ['bsl-shaders', 'photon-shader']
+
 export const modExtras: Record<
   string,
   (version: string) => Record<string, string>
@@ -23,7 +25,7 @@ export const modExtras: Record<
   }),
   fancymenu: () => ({
     'config/fancymenu/options.txt':
-      'https://github.com/AngleOpera/meteor-archive/blob/12c09d0c10b869477220494ba2266c61ac3ba355/default/config/fancymenu/options.txt?raw=true',
+      'https://github.com/AngleOpera/meteor-archive/blob/626061ca24725129e79b0edae070211aa9da3fc8/default/config/fancymenu/options.txt?raw=true',
   }),
   'meteor-client': () => ({
     'meteor-client/macros.nbt':
@@ -105,22 +107,6 @@ export const modDownloads: Record<string, Record<string, Partial<GameMod>>> = {
     },
     '1.14.4': {
       url: 'https://github.com/AngleOpera/meteor-archive/blob/6da1d84dea90fa02a91b9ffb0a706725e5b5caa1/files/meteor-client/meteor-client-meteor-client-0.2.8-1.14.4.jar?raw=true',
-    },
-  },
-}
-
-export const shaders: Record<
-  string,
-  Record<string, Partial<GameShaderpack>>
-> = {
-  bsl: {
-    '*': {
-      url: 'https://cdn.modrinth.com/data/Q1vvjJYV/versions/53F1SOEu/BSL_v8.4.zip',
-    },
-  },
-  photon: {
-    '*': {
-      url: 'https://cdn.modrinth.com/data/lLqFfGNs/versions/Dn4cGSpn/photon_v1.0a.zip',
     },
   },
 }

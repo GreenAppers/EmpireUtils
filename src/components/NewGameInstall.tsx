@@ -209,7 +209,11 @@ export function NewGameInstall(props: {
                         !!newInstall?.mods?.find((x) => x.name == name)
                       }
                       onChange={(e) =>
-                        updateNewInstallMod(name, 'fabric', e.target.checked)
+                        updateNewInstallMod(
+                          name,
+                          getGameInstalModLoaderName(newInstall),
+                          e.target.checked
+                        )
                       }
                     >
                       {name}

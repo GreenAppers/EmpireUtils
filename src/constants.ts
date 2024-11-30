@@ -1,8 +1,15 @@
 import { z } from 'zod'
 
 export enum ModLoaderName {
-  Fabric = 'Fabric',
-  None = 'None',
+  fabric = 'fabric',
+  forge = 'forge',
+  none = 'none',
+}
+
+export enum ShaderpackLoaderName {
+  iris = 'iris',
+  optifine = 'optifine',
+  none = 'none',
 }
 
 export const minecraftLoginResponse = z.object({
@@ -246,8 +253,9 @@ export const gameInstall = z.object({
   path: z.string(),
   uuid: z.string(),
   versionManifest: mojangVersionManifest,
-  fabricLoaderVersion: z.optional(z.string()),
   extraCommandlineArguments: z.optional(z.array(z.string())),
+  fabricLoaderVersion: z.optional(z.string()),
+  iconHash: z.optional(z.string()),
   mods: z.optional(z.array(gameMod)),
   shaderpacks: z.optional(z.array(gameShaderpack)),
   wrapMainClass: z.optional(z.boolean()),
@@ -326,8 +334,8 @@ export const findVersionManifest = (
 export const getGameInstalModLoaderName = (
   gameInstall: Partial<GameInstall>
 ): ModLoaderName => {
-  if (gameInstall.fabricLoaderVersion) return ModLoaderName.Fabric
-  return ModLoaderName.None
+  if (gameInstall.fabricLoaderVersion) return ModLoaderName.fabric
+  return ModLoaderName.none
 }
 
 export const getGameInstallIsHacked = (gameInstall: Partial<GameInstall>) =>
@@ -338,7 +346,7 @@ export const setGameInstallModLoaderName = (
   modLoaderName: string
 ): Partial<GameInstall> => {
   switch (modLoaderName) {
-    case ModLoaderName.Fabric:
+    case ModLoaderName.fabric:
       return { ...gameInstall, fabricLoaderVersion: 'auto' }
     default:
       return { ...gameInstall, fabricLoaderVersion: undefined }

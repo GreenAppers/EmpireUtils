@@ -2,10 +2,8 @@ import axios from 'axios'
 import { spawn } from 'child_process'
 import { app } from 'electron'
 import fs from 'fs'
-import { glob } from 'glob'
 import path from 'path'
 import pSettle from 'p-settle'
-import readline from 'readline'
 import { v4 as uuidv4 } from 'uuid'
 
 import {
@@ -26,6 +24,7 @@ import {
   downloadIfMissing,
   ensureDirectory,
 } from './downloader'
+import { setupIcon } from './icon'
 import {
   allowRules,
   applyArgumentsTemplate,
@@ -48,21 +47,11 @@ export const getClientJarPath = (version: string) =>
     `com/mojang/minecraft/${version}/minecraft-${version}-client.jar`
   )
 
-export const getInstallIconPath = (install: GameInstall) =>
-  path.join(install.path, 'icon.png')
-
 export const getMinecraftVersionJsonPath = (install: GameInstall) =>
   path.join(install.path, `${install.versionManifest.id}.json`)
 
 export const getFabricVersionJsonPath = (install: GameInstall) =>
   path.join(install.path, `fabric-${install.fabricLoaderVersion}.json`)
-
-export async function getRandomIcon() {
-  const icons = await glob(
-    path.join(app.getAppPath(), 'images', 'icons', '*.png')
-  )
-  return icons[Math.floor(Math.random() * icons.length)]
-}
 
 export async function setupFabricInstall(install: GameInstall) {
   if (!(await checkFileExists(getFabricVersionJsonPath(install)))) {
@@ -98,13 +87,7 @@ export async function setupInstall(install: GameInstall) {
     await download(install.versionManifest.url, versionDetailsFilename)
   }
 
-  if (!(await checkFileExists(getInstallIconPath(install)))) {
-    await fs.promises.copyFile(
-      await getRandomIcon(),
-      getInstallIconPath(install)
-    )
-  }
-
+  await setupIcon(install)
   if (install.fabricLoaderVersion) await setupFabricInstall(install)
 }
 
@@ -182,12 +165,20 @@ export async function updateInstall(install: GameInstall) {
     )
     for (const [filePath, url] of Object.entries(mod.extraFiles ?? {})) {
       downloadLibraries.push(() =>
-        downloadIfMissing(
-          url,
-          path.join(install.path, filePath)
-        )
+        downloadIfMissing(url, path.join(install.path, filePath))
       )
     }
+  }
+
+  const shaderpacksPath = path.join(install.path, 'shaderpacks')
+  for (const shaderpack of install.shaderpacks ?? []) {
+    const url = new URL(shaderpack.url)
+    downloadLibraries.push(() =>
+      downloadIfMissing(
+        shaderpack.url,
+        path.join(shaderpacksPath, path.basename(url.pathname))
+      )
+    )
   }
 
   await pSettle(downloadLibraries, { concurrency: 8 })
@@ -275,15 +266,6 @@ export async function launchInstall(
       // '/Library/Internet Plug-Ins/JavaAppletPlugin.plugin/Contents/Home/bin/java',
       'java',
     ]
-    switch (getOsName()) {
-      case 'osx':
-        command.push(
-          '-Xdock:icon=icon.png',
-          `-Xdock:name="EmpireUtils: ${install.name}"`,
-          '-XstartOnFirstThread'
-        )
-        break
-    }
     applyArgumentsTemplate(
       { osName, osArch },
       versionDetails.arguments.jvm,

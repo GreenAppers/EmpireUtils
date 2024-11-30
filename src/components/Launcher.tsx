@@ -204,7 +204,7 @@ export function Launcher() {
                       </Text>
 
                       {getGameInstalModLoaderName(install) ===
-                      ModLoaderName.Fabric ? (
+                      ModLoaderName.fabric ? (
                         getGameInstallIsHacked(install) ? (
                           <Text color="red.500">[Hacked]</Text>
                         ) : (

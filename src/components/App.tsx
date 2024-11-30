@@ -90,9 +90,7 @@ export function App() {
           </TabList>
           <Spacer />
           {gameAccount ? (
-            <Tooltip label={gameAccount.profile.name}>
-              <PlayerHead headSize={76} profile={gameAccount.profile} />
-            </Tooltip>
+            <PlayerHead headSize={76} profile={gameAccount.profile} />
           ) : (
             <Button
               variant="ghost"
