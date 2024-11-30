@@ -22,14 +22,20 @@ import React, { useEffect, useState } from 'react'
 import {
   findVersionManifest,
   GameInstall,
+  GameMod,
   getGameInstalModLoaderName,
   ModLoaderName,
   setGameInstallModLoaderName,
-  toggleGameInstallModeUrl,
+  toggleGameInstallMod,
 } from '../constants'
 import { useMojangVersionManifestsQuery } from '../hooks/useMojang'
+import {
+  modrinthMatchingVersion,
+  modrinthProjectVersionQuery,
+} from '../hooks/useModrinth'
 import { useCreateGameInstallMutation } from '../hooks/useStore'
-import { mods } from '../utils/mods'
+import { defaultFabricMods, modDownloads, modExtras } from '../utils/mods'
+import { useQueryClient } from '@tanstack/react-query'
 
 export const defaultVersion = '1.20.6'
 
@@ -39,6 +45,12 @@ export function NewGameInstall(props: {
   onClose: () => void
 }) {
   const [yellow100] = useToken('colors', ['yellow.100'])
+  const queryClient = useQueryClient()
+  const versionManifests = useMojangVersionManifestsQuery()
+  const createGameInstallMutation = useCreateGameInstallMutation({
+    callback: props.onClose,
+  })
+
   const [newInstall, setNewInstall] = useState<Partial<GameInstall>>(
     props.existingInstall ?? {
       name: '',
@@ -63,10 +75,42 @@ export function NewGameInstall(props: {
     }))
   }
 
-  const versionManifests = useMojangVersionManifestsQuery()
-  const createGameInstallMutation = useCreateGameInstallMutation({
-    callback: props.onClose,
-  })
+  const updateNewInstallMod = (
+    name: string,
+    loader: string,
+    checked: boolean
+  ) => {
+    if (!checked)
+      return setNewInstall((prev) =>
+        toggleGameInstallMod(prev, { name, url: '' }, !!checked)
+      )
+
+    const version = newInstall.versionManifest?.id ?? ''
+    const downloads = modDownloads[name]?.[version]
+    const mod: GameMod = {
+      ...downloads,
+      name,
+      url: downloads?.url ?? '',
+      extraFiles: modExtras[name]?.(version),
+    }
+    if (mod.url)
+      return setNewInstall((prev) => toggleGameInstallMod(prev, mod, !!checked))
+
+    return queryClient
+      .ensureQueryData(modrinthProjectVersionQuery(name))
+      .then((data) => {
+        const version = modrinthMatchingVersion(
+          data,
+          newInstall.versionManifest?.id ?? '',
+          loader
+        )
+        mod.url = version?.files?.[0]?.url ?? ''
+        if (mod.url)
+          return setNewInstall((prev) =>
+            toggleGameInstallMod(prev, mod, !!checked)
+          )
+      })
+  }
 
   useEffect(() => {
     if (!newInstall.versionManifest?.id && versionManifests.isSuccess) {
@@ -158,20 +202,14 @@ export function NewGameInstall(props: {
             </FormControl>
             {newInstall.fabricLoaderVersion && (
               <List marginTop="1rem">
-                {Object.entries(
-                  mods[`${newInstall?.versionManifest?.id}-fabric`] || {}
-                ).map(([name, url]) => (
+                {defaultFabricMods.map((name) => (
                   <ListItem key={name}>
                     <Checkbox
-                      isChecked={newInstall?.mods?.includes(url)}
+                      isChecked={
+                        !!newInstall?.mods?.find((x) => x.name == name)
+                      }
                       onChange={(e) =>
-                        setNewInstall((prev) =>
-                          toggleGameInstallModeUrl(
-                            prev,
-                            url,
-                            !!e.target.checked
-                          )
-                        )
+                        updateNewInstallMod(name, 'fabric', e.target.checked)
                       }
                     >
                       {name}

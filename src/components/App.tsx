@@ -18,7 +18,6 @@ import {
 } from '@chakra-ui/react'
 import React, { useMemo } from 'react'
 
-import { minecraftProfileState } from '../constants'
 import { useGameAcocuntsQuery } from '../hooks/useStore'
 import { Analytics } from './Analytics'
 import { Launcher } from './Launcher'

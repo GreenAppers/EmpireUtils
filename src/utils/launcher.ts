@@ -173,10 +173,21 @@ export async function updateInstall(install: GameInstall) {
 
   const modsPath = path.join(install.path, 'mods')
   for (const mod of install.mods ?? []) {
-    const url = new URL(mod)
+    const url = new URL(mod.url)
     downloadLibraries.push(() =>
-      downloadIfMissing(mod, path.join(modsPath, path.basename(url.pathname)))
+      downloadIfMissing(
+        mod.url,
+        path.join(modsPath, path.basename(url.pathname))
+      )
     )
+    for (const [filePath, url] of Object.entries(mod.extraFiles ?? {})) {
+      downloadLibraries.push(() =>
+        downloadIfMissing(
+          url,
+          path.join(install.path, filePath)
+        )
+      )
+    }
   }
 
   await pSettle(downloadLibraries, { concurrency: 8 })

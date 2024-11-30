@@ -84,7 +84,7 @@ app.on('ready', () => {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self' 'unsafe-eval'; connect-src 'self' https://launchermeta.mojang.com https://meta.fabricmc.net; img-src 'self' http: https: app-file: install-file:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline';",
+          "default-src 'self' 'unsafe-eval'; connect-src 'self' https://launchermeta.mojang.com https://meta.fabricmc.net https://api.modrinth.com; img-src 'self' http: https: app-file: install-file:; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline';",
         ],
       },
     })

@@ -37,6 +37,42 @@ export const minecraftProfile = z.object({
   capes: z.array(minecraftCape),
 })
 
+export const modrinthProjectVersion = z.object({
+  game_versions: z.array(z.string()),
+  loaders: z.array(z.string()),
+  id: z.string(),
+  project_id: z.string(),
+  author_id: z.string(),
+  featured: z.boolean(),
+  name: z.string(),
+  version_number: z.string(),
+  changelog: z.string(),
+  changelog_url: z.string().nullable(),
+  date_published: z.string(),
+  downloads: z.number(),
+  version_type: z.string(),
+  status: z.string(),
+  requested_status: z.string().nullable(),
+  files: z.array(
+    z.object({
+      hashes: z.record(z.string(), z.string()),
+      url: z.string(),
+      filename: z.string(),
+      primary: z.boolean(),
+      size: z.number(),
+      file_type: z.string().nullable(),
+    })
+  ),
+  dependencies: z.array(
+    z.object({
+      version_id: z.string().nullable(),
+      project_id: z.string(),
+      file_name: z.string().nullable(),
+      dependency_type: z.string(),
+    })
+  ),
+})
+
 export const mojangVersionManifest = z.object({
   id: z.string(),
   type: z.string(),
@@ -194,6 +230,17 @@ export const gameAnalyticsPattern = z.object({
   valueIndex: z.number().optional(),
 })
 
+export const gameMod = z.object({
+  name: z.string(),
+  url: z.string(),
+  extraFiles: z.optional(z.record(z.string(), z.string())),
+})
+
+export const gameShaderpack = z.object({
+  name: z.string(),
+  url: z.string(),
+})
+
 export const gameInstall = z.object({
   name: z.string(),
   path: z.string(),
@@ -201,8 +248,9 @@ export const gameInstall = z.object({
   versionManifest: mojangVersionManifest,
   fabricLoaderVersion: z.optional(z.string()),
   extraCommandlineArguments: z.optional(z.array(z.string())),
-  mods: z.optional(z.array(z.string())),
-  wrapMainClass: z.optional(z.string()),
+  mods: z.optional(z.array(gameMod)),
+  shaderpacks: z.optional(z.array(gameShaderpack)),
+  wrapMainClass: z.optional(z.boolean()),
 })
 
 export const waypoint = z.object({
@@ -216,6 +264,7 @@ export const waypoint = z.object({
 export type MinecraftLoginResponse = z.infer<typeof minecraftLoginResponse>
 export type MinecraftProfile = z.infer<typeof minecraftProfile>
 export type MinecraftProfileState = z.infer<typeof minecraftProfileState>
+export type ModrinthProjectVersion = z.infer<typeof modrinthProjectVersion>
 export type MojangLibrary = z.infer<typeof mojangLibrary>
 export type MojangRule = z.infer<typeof mojangRule>
 export type MojangVersionDetails = z.infer<typeof mojangVersionDetails>
@@ -227,6 +276,8 @@ export type XSTSAuthorizeResponse = z.infer<typeof xstsAuthorizeResponse>
 export type GameAccount = z.infer<typeof gameAccount>
 export type GameAnalyticsPattern = z.infer<typeof gameAnalyticsPattern>
 export type GameInstall = z.infer<typeof gameInstall>
+export type GameMod = z.infer<typeof gameMod>
+export type GameShaderpack = z.infer<typeof gameShaderpack>
 export type Waypoint = z.infer<typeof waypoint>
 
 export const STORE_KEYS = {
@@ -242,6 +293,7 @@ export const QUERY_KEYS = {
   useGameAnalyticsPatterns: 'useGameAnalyticsPatterns',
   useGameInstalls: 'useGameInstalls',
   useGameLogDirectories: 'useGameLogDirectories',
+  useModrinthProjectVersion: 'useModrinthProjectVersion',
   useMojangVersionManifests: 'useMojangVersionManifests',
   useWaypoints: 'useWaypoints',
 }
@@ -279,7 +331,7 @@ export const getGameInstalModLoaderName = (
 }
 
 export const getGameInstallIsHacked = (gameInstall: Partial<GameInstall>) =>
-  gameInstall?.mods?.some((x) => x.includes('meteor-client'))
+  gameInstall?.mods?.some((x) => x.name === 'meteor-client')
 
 export const setGameInstallModLoaderName = (
   gameInstall: Partial<GameInstall>,
@@ -293,17 +345,19 @@ export const setGameInstallModLoaderName = (
   }
 }
 
-export const toggleGameInstallModeUrl = (
+export const toggleGameInstallMod = (
   gameInstall: Partial<GameInstall>,
-  url: string,
-  includeUrl?: boolean
+  mod: GameMod,
+  includeMod?: boolean
 ): Partial<GameInstall> => ({
   ...gameInstall,
   mods: (
-    includeUrl !== undefined ? includeUrl : gameInstall.mods?.includes(url)
+    includeMod !== undefined
+      ? includeMod
+      : gameInstall.mods?.some((x) => x.name === mod.name)
   )
-    ? [...(gameInstall.mods ?? []), url]
-    : (gameInstall.mods ?? []).filter((x) => x !== url),
+    ? [...(gameInstall.mods ?? []), mod]
+    : (gameInstall.mods ?? []).filter((x) => x.name !== mod.name),
 })
 
 export const parseLibraryName = (libraryName: string) => {
